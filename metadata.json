@@ -1,0 +1,5 @@
+{
+  "name": "CloudCast: AI AWS Estimator",
+  "description": "A visual infrastructure builder that uses AI to estimate AWS monthly costs based on resource configuration.",
+  "requestFramePermissions": []
+}
