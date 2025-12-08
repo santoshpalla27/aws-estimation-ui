@@ -111,6 +111,16 @@ def main():
             try:
                 # Pass raw_file and output_file as arguments
                 subprocess.run([sys.executable, os.path.join(NORMALIZER_DIR, target_script), raw_file, output_file], check=True)
+                
+                # Special Case: AmazonEC2 file also contains AmazonEBS data
+                if "amazonec2" in service_name.lower():
+                     print(f"  [Special] Triggering EBS Normalization from {filename}...")
+                     ebs_script = "normalize_ebs.py"
+                     # Output file: amazonebs.json (normalize_ebs.py detects/handles this, or we verify naming)
+                     # We pass the same raw file, but let the script handle its output naming or pass explicitly if supported
+                     ebs_output = os.path.join(NORMALIZED_DIR, "amazonebs.json")
+                     subprocess.run([sys.executable, os.path.join(NORMALIZER_DIR, ebs_script), raw_file, ebs_output], check=True)
+
             except Exception as e:
                 print(f"  Error: {e}")
         else:
