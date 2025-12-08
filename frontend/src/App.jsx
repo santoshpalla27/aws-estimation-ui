@@ -1,4 +1,9 @@
+import React, { useState, useEffect } from 'react';
 import ArchitectureBuilder from './components/ArchitectureBuilder';
+import Dashboard from './components/Dashboard';
+import EC2Calculator from './components/EC2Calculator';
+import S3Calculator from './components/S3Calculator';
+import GenericCalculator from './components/GenericCalculator';
 
 function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
