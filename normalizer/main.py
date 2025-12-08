@@ -79,17 +79,38 @@ def main():
     for raw_file in raw_files:
         filename = os.path.basename(raw_file)
         # format: {service}_pricing.json -> service
+        # e.g. amazonec2_pricing.json -> amazonec2
         service_name = filename.replace("_pricing.json", "")
         output_file = os.path.join(NORMALIZED_DIR, f"{service_name}.json")
         
         print(f"\nProcessing {service_name}...")
         
-        specific_script = get_specific_normalizer(service_name)
+        # Mapping: Downloader uses 'amazonec2', Normalizer script is 'normalize_ec2.py'
+        # We need to try mapping 'amazonec2' -> 'ec2' if direct match failing looks likely
+        # Actually 'normalize_amazonec2.py' doesn't exist.
         
-        if specific_script:
-            print(f"  Using Specific Normalizer: {specific_script}")
+        target_script = None
+        
+        # 1. Try exact name (e.g. normalize_awsbackup.py if we had one)
+        if get_specific_normalizer(service_name):
+            target_script = get_specific_normalizer(service_name)
+        
+        # 2. Try removing 'amazon' or 'aws' prefix
+        if not target_script:
+            if service_name.startswith("amazon"):
+                short_name = service_name.replace("amazon", "")
+                if get_specific_normalizer(short_name):
+                    target_script = get_specific_normalizer(short_name)
+            elif service_name.startswith("aws"):
+                short_name = service_name.replace("aws", "")
+                if get_specific_normalizer(short_name):
+                    target_script = get_specific_normalizer(short_name)
+                    
+        if target_script:
+            print(f"  Using Specific Normalizer: {target_script}")
             try:
-                subprocess.run([sys.executable, os.path.join(NORMALIZER_DIR, specific_script)], check=True)
+                # Pass raw_file and output_file as arguments
+                subprocess.run([sys.executable, os.path.join(NORMALIZER_DIR, target_script), raw_file, output_file], check=True)
             except Exception as e:
                 print(f"  Error: {e}")
         else:

@@ -89,7 +89,7 @@ def parse_terms(cursor, file_path):
             cursor.executemany("INSERT OR IGNORE INTO prices VALUES (?,?,?,?)", batch)
     print("\nTerms done.")
 
-def export_json(cursor):
+def export_json(cursor, output_file):
     print("Exporting S3 to JSON...")
     cursor.execute('''
         SELECT p.region, p.product_family, p.storage_class, pr.unit, pr.price
@@ -111,13 +111,21 @@ def export_json(cursor):
             "price": r[4]
         })
     
-    with open(OUTPUT_FILE, 'w') as f:
+    with open(output_file, 'w') as f:
         json.dump(normalized, f, indent=0)
-    print(f"Exported {len(normalized)} records to {OUTPUT_FILE}")
+    print(f"Exported {len(normalized)} records to {output_file}")
 
 def main():
-    if not os.path.exists(RAW_FILE):
-        print(f"File not found: {RAW_FILE}")
+    # Allow command line args for file paths
+    raw_file = RAW_FILE
+    output_file = OUTPUT_FILE
+    
+    if len(sys.argv) > 2:
+        raw_file = sys.argv[1]
+        output_file = sys.argv[2]
+        
+    if not os.path.exists(raw_file):
+        print(f"File not found: {raw_file}")
         return
 
     conn = sqlite3.connect(DB_FILE)
@@ -126,13 +134,13 @@ def main():
     init_db(cursor)
     
     try:
-        parse_products(cursor, RAW_FILE)
+        parse_products(cursor, raw_file)
         conn.commit()
         
-        parse_terms(cursor, RAW_FILE)
+        parse_terms(cursor, raw_file)
         conn.commit()
         
-        export_json(cursor)
+        export_json(cursor, output_file)
         
     finally:
         conn.close()
