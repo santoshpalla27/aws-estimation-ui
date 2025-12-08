@@ -32,8 +32,8 @@ services:
     volumes:
       - ./data:/app/data
     command: >
-      sh -c "python downloader/main.py && 
-             python normalizer/main.py && 
-             python metadata/main.py"
+      sh -c "python backend/downloader/main.py && 
+             python backend/normalizer/main.py && 
+             python backend/metadata/main.py"
     profiles:
       - tools # Only run when explicitly requested: docker-compose --profile tools up

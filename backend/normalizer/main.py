@@ -9,11 +9,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REGISTRY_PATH = os.path.join(BASE_DIR, 'services_registry.json')
-SERVICES_DIR = os.path.join(BASE_DIR, 'services')
-DATA_RAW_DIR = os.path.join(BASE_DIR, 'data', 'raw')
-DATA_NORMALIZED_DIR = os.path.join(BASE_DIR, 'data', 'normalized')
+# normalizer/main.py is in backend/normalizer/
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+ROOT_DIR = os.path.dirname(BACKEND_DIR)
+
+REGISTRY_PATH = os.path.join(BACKEND_DIR, 'services_registry.json')
+SERVICES_DIR = os.path.join(BACKEND_DIR, 'services')
+DATA_RAW_DIR = os.path.join(ROOT_DIR, 'data', 'raw')
+DATA_NORMALIZED_DIR = os.path.join(ROOT_DIR, 'data', 'normalized')
 
 def load_registry():
     with open(REGISTRY_PATH, 'r') as f:

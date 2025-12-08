@@ -7,7 +7,9 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# backend/app/api/pricing_router.py
+# We want BACKEND_DIR
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 @router.get("/{service_id}")
 async def get_pricing(service_id: str):
@@ -19,8 +21,25 @@ async def get_pricing(service_id: str):
     # Requirement: "GET /api/pricing/{service}"
     # Usually this would return the normalized pricing or a subset.
     # Let's return the normalized JSON if it exists.
+    # Data is usually at root/data, but let's see. 
+    # If we moved everything to backend, maybe data should vary?
+    # The prompt said "Move services normalizer metada may go under backend folder".
+    # It didn't say "data". But downloader output is usually relative.
+    # Let's check where downloader puts it. 
+    # Dockerfile creates /app/data.
+    # docker-compose maps ./data:/app/data.
+    # So inside container, /app/data is root/data.
+    # If app is running from /app/backend/app/main.py...
+    # let's try to keep data at root for persistence outside of backend code.
+    # But wait, if BACKEND_DIR is /app/backend.
+    # Then root is dirname(BACKEND_DIR).
     
-    normalized_path = os.path.join(BASE_DIR, 'data', 'normalized', f"{service_id}.json")
+    ROOT_DIR = os.path.dirname(BACKEND_DIR)
+    normalized_path = os.path.join(ROOT_DIR, 'data', 'normalized', f"{service_id}.json")
+    if not os.path.exists(normalized_path):
+        # Fallback check if data is in backend/data (unlikely but possible if moved)
+        normalized_path = os.path.join(BACKEND_DIR, 'data', 'normalized', f"{service_id}.json")
+        
     if not os.path.exists(normalized_path):
         raise HTTPException(status_code=404, detail="Pricing data not available")
         

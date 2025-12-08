@@ -8,11 +8,16 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REGISTRY_PATH = os.path.join(BASE_DIR, 'services_registry.json')
-SERVICES_DIR = os.path.join(BASE_DIR, 'services')
-DATA_NORMALIZED_DIR = os.path.join(BASE_DIR, 'data', 'normalized')
-METADATA_OUTPUT = os.path.join(BASE_DIR, 'service_metadata.json')
+# metadata/main.py is in backend/metadata/
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.dirname(CURRENT_DIR)
+ROOT_DIR = os.path.dirname(BACKEND_DIR)
+
+REGISTRY_PATH = os.path.join(BACKEND_DIR, 'services_registry.json')
+SERVICES_DIR = os.path.join(BACKEND_DIR, 'services')
+DATA_NORMALIZED_DIR = os.path.join(ROOT_DIR, 'data', 'normalized')
+# Metadata output goes to backend/service_metadata.json (used by API)
+METADATA_OUTPUT = os.path.join(BACKEND_DIR, 'service_metadata.json')
 
 def load_registry():
     with open(REGISTRY_PATH, 'r') as f:
