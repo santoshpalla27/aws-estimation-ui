@@ -12,7 +12,8 @@ function App() {
 
     useEffect(() => {
         // Use relative path so Nginx proxies it to backend
-        fetch('/api/services')
+        // Add trailing slash to avoid 307 redirect which might strip the port
+        fetch('/api/services/')
             .then(res => res.json())
             .then(data => {
                 setServices(data);
