@@ -16,10 +16,10 @@ MAX_RETRIES = 5
 
 SERVICE_CODES = [
     "AmazonEC2",
-    "AmazonEBS",
+    # "AmazonEBS", # EBS pricing is contained within AmazonEC2 offer file
     "AmazonS3",
     "AmazonRDS",
-    "AmazonLambda",
+    "AWSLambda",
     "AmazonCloudFront",
     # Add others as needed
 ]
