@@ -6,12 +6,13 @@ const EC2Calculator = ({ onAddEstimate }) => {
     const [hours, setHours] = useState(730);
     const [storage, setStorage] = useState(30);
     const [volumeType, setVolumeType] = useState('gp3');
+    const [term, setTerm] = useState('ondemand');
     const [estimate, setEstimate] = useState(null);
 
     // Mock loading data
     useEffect(() => {
         calculate();
-    }, [region, instanceType, hours, storage, volumeType]);
+    }, [region, instanceType, hours, storage, volumeType, term]);
 
     const calculate = async () => {
         try {
@@ -22,6 +23,7 @@ const EC2Calculator = ({ onAddEstimate }) => {
                     region,
                     instance_type: instanceType,
                     hours_per_month: hours,
+                    term: term,
                     storage_gb: storage,
                     ebs_volume_type: volumeType
                 })
@@ -54,8 +56,19 @@ const EC2Calculator = ({ onAddEstimate }) => {
                     <option value="us-east-1">US East (N. Virginia)</option>
                     <option value="us-west-2">US West (Oregon)</option>
                     <option value="eu-central-1">Europe (Frankfurt)</option>
+                    <option value="ap-south-1">Asia Pacific (Mumbai)</option>
                 </select>
             </div>
+
+            <div className="mb-4">
+                <label className="block text-gray-700 dark:text-gray-300 mb-2">Pricing Term</label>
+                <select value={term} onChange={(e) => setTerm(e.target.value)} className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white">
+                    <option value="ondemand">On Demand</option>
+                    <option value="reserved_1yr">Reserved (1 Year)</option>
+                    <option value="spot">Spot Instance</option>
+                </select>
+            </div>
+
 
             <div className="mb-4">
                 <label className="block text-gray-700 dark:text-gray-300 mb-2">Instance Type</label>

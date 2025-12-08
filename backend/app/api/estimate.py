@@ -63,14 +63,40 @@ def estimate_ec2(req: EC2EstimateRequest):
     hourly_rate = float(match.get("ondemand", 0)) 
     
     hours = req.hours_per_month
+    hours = req.hours_per_month
     if req.term == "reserved_1yr":
         # Check for reserved price in data or apply standard discount heuristic
-        # For now, MVP applies heuristic if real reserved data missing
         rs_rate = float(match.get("reserved_1yr", 0))
         if rs_rate > 0:
             hourly_rate = rs_rate
         else:
             hourly_rate *= 0.6 # Fallback ~40% discount
+    elif req.term == "spot":
+        # Load Spot Data
+        try:
+            import json
+            import os
+            base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            spot_path = os.path.join(base, "data", "spot_pricing.json")
+            
+            spot_price = None
+            if os.path.exists(spot_path):
+                with open(spot_path, 'r') as f:
+                    spot_data = json.load(f)
+                    # Structure: Region -> Instance -> Price
+                    r_data = spot_data.get(req.region, {})
+                    spot_price = r_data.get(req.instance_type)
+            
+            if spot_price:
+                hourly_rate = float(spot_price)
+            else:
+                # Fallback if spot data missing: 70% discount on OnDemand
+                 hourly_rate *= 0.3
+        except Exception as e:
+            print(f"Spot lookup error: {e}")
+            hourly_rate *= 0.3 # Fallback
+            
+    compute_cost = hourly_rate * hours
             
     compute_cost = hourly_rate * hours
     
