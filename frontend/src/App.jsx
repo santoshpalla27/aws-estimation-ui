@@ -1,108 +1,122 @@
-import React, { useState, useEffect } from 'react';
-import ArchitectureBuilder from './components/ArchitectureBuilder';
-import Dashboard from './components/Dashboard';
-import EC2Calculator from './components/EC2Calculator';
-import S3Calculator from './components/S3Calculator';
-import GenericCalculator from './components/GenericCalculator';
+import React, { useState, useEffect, Suspense } from 'react'
+import { Layout, CheckSquare, Plus, HardDrive, Database, Server, PenTool } from 'lucide-react'
+import ArchitectureBuilder from './components/ArchitectureBuilder'
+
+// Dynamic Service Loader
+const serviceCalculators = import.meta.glob('./services/*/Calculator.jsx')
 
 function App() {
-    const [activeTab, setActiveTab] = useState('dashboard');
-    const [estimates, setEstimates] = useState([]);
-    const [services, setServices] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [activeService, setActiveService] = useState('dashboard')
+    const [services, setServices] = useState([])
+    const [CalculatorComponent, setCalculatorComponent] = useState(null)
 
     useEffect(() => {
-        // Use relative path so Nginx proxies it to backend
-        // Add trailing slash to avoid 307 redirect which might strip the port
-        fetch('/api/services/')
+        fetch('/api/services')
             .then(res => res.json())
-            .then(data => {
-                setServices(data);
-                setLoading(false);
-            })
-            .catch(err => {
-                console.error("Failed to fetch services", err);
-                setLoading(false);
-            });
-    }, []);
+            .then(data => setServices(data))
+            .catch(err => console.error("Failed to load services", err))
+    }, [])
 
-    const totalCost = estimates.reduce((acc, item) => acc + item.cost, 0);
-
-    const addEstimate = (item) => {
-        setEstimates([...estimates, item]);
-        setActiveTab('dashboard');
-    };
-
-    const renderContent = () => {
-        if (activeTab === 'dashboard') {
-            return <Dashboard totalCost={totalCost} items={estimates} />;
-        }
-        if (activeTab === 'builder') {
-            return <ArchitectureBuilder />;
-        }
-        if (activeTab === 'EC2' || activeTab === 'AmazonEC2') {
-            return <div className="p-6"><EC2Calculator onAddEstimate={addEstimate} /></div>;
-        }
-        if (activeTab === 'S3' || activeTab === 'AmazonS3') {
-            return <div className="p-6"><S3Calculator onAddEstimate={addEstimate} /></div>;
+    useEffect(() => {
+        if (activeService === 'dashboard' || activeService === 'builder') {
+            setCalculatorComponent(null)
+            return
         }
 
-        // Generic Handler for all other services
-        return (
-            <div className="p-6">
-                <GenericCalculator
-                    serviceId={activeTab}
-                    onAddEstimate={addEstimate}
-                />
-            </div>
-        );
-    };
+        const loadComponent = async () => {
+            const path = `./services/${activeService}/Calculator.jsx`
+            if (serviceCalculators[path]) {
+                try {
+                    const mod = await serviceCalculators[path]()
+                    setCalculatorComponent(() => mod.default)
+                } catch (e) {
+                    console.error(`Failed to load calculator for ${activeService}`, e)
+                }
+            }
+        }
+        loadComponent()
+    }, [activeService])
 
     return (
-        <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-            {/* Sidebar */}
-            <div className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col">
-                <div className="p-6">
-                    <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">AWS Estimator</h1>
+        <div className="layout">
+            <aside className="sidebar">
+                <div className="header" style={{ marginBottom: '1rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Layout size={20} /> CloudEstimator
+                    </h2>
                 </div>
-                <nav className="mt-4 flex-1 overflow-y-auto">
-                    <button
-                        onClick={() => setActiveTab('dashboard')}
-                        className={`w-full text-left px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 ${activeTab === 'dashboard' ? 'bg-blue-50 dark:bg-gray-700 border-r-4 border-blue-500' : ''}`}
+
+                <div
+                    className={`service-item ${activeService === 'dashboard' ? 'active' : ''}`}
+                    onClick={() => setActiveService('dashboard')}
+                >
+                    <Layout size={16} style={{ marginRight: '0.5rem' }} /> Dashboard
+                </div>
+
+                <div
+                    className={`service-item ${activeService === 'builder' ? 'active' : ''}`}
+                    onClick={() => setActiveService('builder')}
+                >
+                    <PenTool size={16} style={{ marginRight: '0.5rem' }} /> Builder
+                </div>
+
+                <div style={{ marginTop: '1rem', marginBottom: '0.5rem', fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 'bold' }}>
+                    Services
+                </div>
+
+                {services.map(service => (
+                    <div
+                        key={service.serviceId}
+                        className={`service-item ${activeService === service.serviceId ? 'active' : ''}`}
+                        onClick={() => setActiveService(service.serviceId)}
                     >
-                        <span className="text-gray-700 dark:text-gray-200 font-bold">Dashboard</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('builder')}
-                        className={`w-full text-left px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 ${activeTab === 'builder' ? 'bg-blue-50 dark:bg-gray-700 border-r-4 border-blue-500' : ''}`}
-                    >
-                        <span className="text-gray-700 dark:text-gray-200 font-bold">Architecture Builder</span>
-                    </button>
+                        {service.label}
+                    </div>
+                ))}
+            </aside>
 
-                    <div className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase mt-4">Services</div>
-
-                    {loading ? (
-                        <div className="px-6 py-2 text-gray-400">Loading...</div>
-                    ) : (
-                        services.map(svc => (
-                            <button
-                                key={svc.id}
-                                onClick={() => setActiveTab(svc.id)}
-                                className={`w-full text-left px-6 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 ${activeTab === svc.id ? 'bg-blue-50 dark:bg-gray-700 border-r-4 border-blue-500' : ''}`}
-                            >
-                                <span className="text-gray-700 dark:text-gray-200 truncate block">{svc.name}</span>
-                            </button>
-                        ))
-                    )}
-                </nav>
-            </div>
-
-            {/* Main Content */}
-            <div className="flex-1 overflow-auto">
-                {renderContent()}
-            </div>
+            <main className="main-content">
+                {activeService === 'dashboard' ? (
+                    <Dashboard services={services} />
+                ) : activeService === 'builder' ? (
+                    <ArchitectureBuilder services={services} />
+                ) : (
+                    <Suspense fallback={<div>Loading calculator...</div>}>
+                        {CalculatorComponent ? (
+                            <CalculatorComponent serviceId={activeService} />
+                        ) : (
+                            <div className="card">
+                                <h2>Component Not Found</h2>
+                                <p>The calculator for {activeService} could not be loaded.</p>
+                            </div>
+                        )}
+                    </Suspense>
+                )}
+            </main>
         </div>
-    );
+    )
 }
 
-export default App;
+function Dashboard({ services }) {
+    return (
+        <div>
+            <div className="header">
+                <h1>Dashboard</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>Overview of your potential cloud architecture.</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1.5rem' }}>
+                {services.map(s => (
+                    <div key={s.serviceId} className="card">
+                        <h3>{s.label}</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                            Configure and estimate costs for {s.label}.
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+export default App

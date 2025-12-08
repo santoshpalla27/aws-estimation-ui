@@ -2,30 +2,38 @@ version: '3.8'
 
 services:
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-    restart: always
+      # Mount services and app code for hot reloading if desired (optional)
+      # - ./services:/app/services 
+      # - ./backend:/app/backend
+    environment:
+      - PYTHONUNBUFFERED=1
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "5173:80"
     depends_on:
       - backend
 
-  # Optional: Run downloader periodically or manually
-  downloader:
-    build: ./downloader
+  # Utility container to run data pipeline
+  data-pipeline:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     volumes:
-      - ./data:/data
-      - ./downloader:/downloader
-      - ./normalizer:/normalizer
-      - ./metadata:/metadata
-    working_dir: /
-    # No need to pip install anymore
-    command: sh -c "python /downloader/pricing_downloader.py && python /normalizer/main.py"
+      - ./data:/app/data
+    command: >
+      sh -c "python downloader/main.py && 
+             python normalizer/main.py && 
+             python metadata/main.py"
     profiles:
-      - tools # Only run when explicitly requested e.g. docker-compose --profile tools up
+      - tools # Only run when explicitly requested: docker-compose --profile tools up

@@ -1,138 +1,75 @@
-import os
-import subprocess
-import sys
-import glob
 import json
+import os
 import importlib.util
+import sys
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Paths
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-NORMALIZER_DIR = os.path.join(BASE_DIR, "normalizer")
-RAW_DIR = os.path.join(BASE_DIR, "data", "raw")
-NORMALIZED_DIR = os.path.join(BASE_DIR, "data", "normalized")
-METADATA_FILE = os.path.join(BASE_DIR, "data", "service_metadata.json")
+REGISTRY_PATH = os.path.join(BASE_DIR, 'services_registry.json')
+SERVICES_DIR = os.path.join(BASE_DIR, 'services')
+DATA_RAW_DIR = os.path.join(BASE_DIR, 'data', 'raw')
+DATA_NORMALIZED_DIR = os.path.join(BASE_DIR, 'data', 'normalized')
 
-# Import normalizers
-sys.path.append(NORMALIZER_DIR)
-import normalize_generic
+def load_registry():
+    with open(REGISTRY_PATH, 'r') as f:
+        return json.load(f)
 
-def get_specific_normalizer(service_name):
-    script_name = f"normalize_{service_name}.py"
-    script_path = os.path.join(NORMALIZER_DIR, script_name)
-    if os.path.exists(script_path):
-        return script_name
-    return None
+def run_service_normalizer(service_info):
+    service_id = service_info['serviceId']
+    if not service_info.get('hasNormalizer'):
+        logger.info(f"Skipping normalizer for {service_id}")
+        return
 
-def generate_metadata_summary():
-    print("\nGenerating Service Metadata Summary...")
-    summary = {}
+    raw_file = os.path.join(DATA_RAW_DIR, f"{service_id}.json")
+    output_file = os.path.join(DATA_NORMALIZED_DIR, f"{service_id}.json")
+
+    if not os.path.exists(raw_file):
+        logger.warning(f"Raw data file for {service_id} not found: {raw_file}")
+        return
+
+    logger.info(f"Starting normalizer for {service_id}")
     
-    files = glob.glob(os.path.join(NORMALIZED_DIR, "*.json"))
-    for fpath in files:
-        fname = os.path.basename(fpath)
-        service = fname.replace(".json", "")
+    # Dynamic import
+    service_path = os.path.join(SERVICES_DIR, service_id, 'normalizer.py')
+    if not os.path.exists(service_path):
+        logger.error(f"Normalizer module not found for {service_id} at {service_path}")
+        return
+
+    try:
+        spec = importlib.util.spec_from_file_location(f"services.{service_id}.normalizer", service_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[f"services.{service_id}.normalizer"] = module
+        spec.loader.exec_module(module)
         
-        try:
-            with open(fpath, 'r') as f:
-                # Read first few items to detect schema
-                # large files? json.load reads all. 
-                # For summary, we might accept reading all or stream.
-                data = json.load(f)
-                if not data:
-                    continue
-                
-                regions = set()
-                attribute_keys = set()
-                
-                for item in data:
-                    if "region" in item:
-                        regions.add(item["region"])
-                    
-                    # Generic stores in 'attributes' dict
-                    if "attributes" in item and isinstance(item["attributes"], dict):
-                        attribute_keys.update(item["attributes"].keys())
-                    else:
-                        # Specific normalizers (EC2/RDS) have flat keys
-                        attribute_keys.update(item.keys())
-                
-                summary[service] = {
-                    "regions": sorted(list(regions)),
-                    "attributes": sorted(list(attribute_keys)),
-                    "count": len(data)
-                }
-        except Exception as e:
-            print(f"  Error processing metadata for {service}: {e}")
+        if hasattr(module, 'normalize'):
+            module.normalize(raw_file, output_file)
+            logger.info(f"Successfully normalized {service_id}")
+        else:
+            logger.error(f"Module {service_id} does not have a normalize(raw_file, output_file) function")
             
-    with open(METADATA_FILE, 'w') as f:
-        json.dump(summary, f, indent=2)
-    print(f"Saved metadata summary to {METADATA_FILE}")
+    except Exception as e:
+        logger.error(f"Failed to normalize {service_id}: {str(e)}")
+        # Log stack trace in real implementation
 
 def main():
-    if not os.path.exists(NORMALIZED_DIR):
-        os.makedirs(NORMALIZED_DIR)
-
-    print("Starting Normalization Engine...")
+    logger.info("Starting Global Normalizer Orchestrator")
+    registry = load_registry()
     
-    # Find all downloaded raw pricing files
-    raw_files = glob.glob(os.path.join(RAW_DIR, "*_pricing.json"))
+    # Ensure data directories exist
+    os.makedirs(DATA_NORMALIZED_DIR, exist_ok=True)
     
-    for raw_file in raw_files:
-        filename = os.path.basename(raw_file)
-        # format: {service}_pricing.json -> service
-        # e.g. amazonec2_pricing.json -> amazonec2
-        service_name = filename.replace("_pricing.json", "")
-        output_file = os.path.join(NORMALIZED_DIR, f"{service_name}.json")
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(run_service_normalizer, service) for service in registry]
         
-        print(f"\nProcessing {service_name}...")
-        
-        # Mapping: Downloader uses 'amazonec2', Normalizer script is 'normalize_ec2.py'
-        # We need to try mapping 'amazonec2' -> 'ec2' if direct match failing looks likely
-        # Actually 'normalize_amazonec2.py' doesn't exist.
-        
-        target_script = None
-        
-        # 1. Try exact name (e.g. normalize_awsbackup.py if we had one)
-        if get_specific_normalizer(service_name):
-            target_script = get_specific_normalizer(service_name)
-        
-        # 2. Try removing 'amazon' or 'aws' prefix
-        if not target_script:
-            if service_name.startswith("amazon"):
-                short_name = service_name.replace("amazon", "")
-                if get_specific_normalizer(short_name):
-                    target_script = get_specific_normalizer(short_name)
-            elif service_name.startswith("aws"):
-                short_name = service_name.replace("aws", "")
-                if get_specific_normalizer(short_name):
-                    target_script = get_specific_normalizer(short_name)
-                    
-        if target_script:
-            print(f"  Using Specific Normalizer: {target_script}")
-            try:
-                # Pass raw_file and output_file as arguments
-                subprocess.run([sys.executable, os.path.join(NORMALIZER_DIR, target_script), raw_file, output_file], check=True)
-                
-                # Special Case: AmazonEC2 file also contains AmazonEBS data
-                if "amazonec2" in service_name.lower():
-                     print(f"  [Special] Triggering EBS Normalization from {filename}...")
-                     ebs_script = "normalize_ebs.py"
-                     # Output file: amazonebs.json (normalize_ebs.py detects/handles this, or we verify naming)
-                     # We pass the same raw file, but let the script handle its output naming or pass explicitly if supported
-                     ebs_output = os.path.join(NORMALIZED_DIR, "amazonebs.json")
-                     subprocess.run([sys.executable, os.path.join(NORMALIZER_DIR, ebs_script), raw_file, ebs_output], check=True)
-
-            except Exception as e:
-                print(f"  Error: {e}")
-        else:
-            print(f"  Using Generic Normalizer")
-            try:
-                normalize_generic.normalize_generic(service_name, raw_file, output_file)
-            except Exception as e:
-                print(f"  Error: {e}")
-
-    # After all valid files are processed
-    generate_metadata_summary()
-    print("\nNormalization Complete.")
+        for future in as_completed(futures):
+            future.result()
+            
+    logger.info("Global Normalizer Finished")
 
 if __name__ == "__main__":
     main()

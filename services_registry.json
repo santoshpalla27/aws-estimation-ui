@@ -1,0 +1,38 @@
+[
+    {
+        "serviceId": "ec2",
+        "label": "Amazon EC2",
+        "hasDownloader": true,
+        "hasNormalizer": true,
+        "hasEstimator": true,
+        "hasMetadata": true,
+        "hasUI": true
+    },
+    {
+        "serviceId": "s3",
+        "label": "Amazon S3",
+        "hasDownloader": true,
+        "hasNormalizer": true,
+        "hasEstimator": true,
+        "hasMetadata": true,
+        "hasUI": true
+    },
+    {
+        "serviceId": "rds",
+        "label": "Amazon RDS",
+        "hasDownloader": true,
+        "hasNormalizer": true,
+        "hasEstimator": true,
+        "hasMetadata": true,
+        "hasUI": true
+    },
+    {
+        "serviceId": "efs",
+        "label": "Amazon EFS",
+        "hasDownloader": true,
+        "hasNormalizer": true,
+        "hasEstimator": true,
+        "hasMetadata": true,
+        "hasUI": true
+    }
+]

@@ -1,273 +1,85 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import ReactFlow, {
-    ReactFlowProvider,
-    addEdge,
-    useNodesState,
-    useEdgesState,
-    Controls,
-    Background,
-    MiniMap,
-    Panel
-} from 'reactflow';
-import 'reactflow/dist/style.css';
-import { toPng } from 'html-to-image';
+import React, { useState } from 'react'
+import { Plus, X } from 'lucide-react'
 
-import ServiceNode from './ServiceNode';
+// Mocking simple Architecture Builder for demo
+// In a full implementation, this might use React Flow or similar
+export default function ArchitectureBuilder({ services }) {
+    const [nodes, setNodes] = useState([])
+    const [totalCost, setTotalCost] = useState(0)
 
-const nodeTypes = {
-    serviceNode: ServiceNode,
-};
+    const addNode = (serviceId) => {
+        const service = services.find(s => s.serviceId === serviceId)
+        setNodes([...nodes, {
+            id: Date.now(),
+            serviceId,
+            label: service.label,
+            cost: 0,
+            config: {}
+        }])
+        // In real app, we would open config modal immediately
+    }
 
-const SERVICES_PALETTE = [
-    { id: 'AmazonEC2', label: 'EC2 Instance', icon: '🖥️' },
-    { id: 'AmazonS3', label: 'S3 Bucket', icon: '🪣' },
-    { id: 'AmazonRDS', label: 'RDS Database', icon: '🗄️' },
-    { id: 'AmazonLambda', label: 'Lambda Function', icon: '⚡' },
-    { id: 'AmazonVPC', label: 'VPC', icon: '🌐' },
-    { id: 'AWSELB', label: 'Load Balancer', icon: '⚖️' }
-];
+    const removeNode = (id) => {
+        setNodes(nodes.filter(n => n.id !== id))
+        recalculateParams()
+    }
 
-let id = 0;
-const getId = () => `node_${id++}`;
-
-const ArchitectureBuilder = () => {
-    const reactFlowWrapper = useRef(null);
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-    const [reactFlowInstance, setReactFlowInstance] = useState(null);
-    const [selectedNode, setSelectedNode] = useState(null);
-    const [configLoading, setConfigLoading] = useState(false);
-    const [pricingOptions, setPricingOptions] = useState([]);
-    const [selectedPrice, setSelectedPrice] = useState(null);
-
-    // Total Cost Calculation
-    const totalCost = nodes.reduce((acc, node) => acc + (node.data.cost || 0), 0);
-
-    const onConnect = useCallback((params) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
-
-    const onDragOver = useCallback((event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-    }, []);
-
-    const onDrop = useCallback(
-        (event) => {
-            event.preventDefault();
-
-            const type = event.dataTransfer.getData('application/reactflow');
-            const serviceId = event.dataTransfer.getData('serviceId');
-            const icon = event.dataTransfer.getData('icon');
-            const label = event.dataTransfer.getData('label');
-
-            if (typeof type === 'undefined' || !type) {
-                return;
-            }
-
-            const position = reactFlowInstance.screenToFlowPosition({
-                x: event.clientX,
-                y: event.clientY,
-            });
-
-            const newNode = {
-                id: getId(),
-                type: 'serviceNode',
-                position,
-                data: { label, serviceId, icon, cost: 0, details: 'Configure me' },
-            };
-
-            setNodes((nds) => nds.concat(newNode));
-        },
-        [reactFlowInstance, setNodes]
-    );
-
-    // Node Selection Handler
-    const onNodeClick = (event, node) => {
-        setSelectedNode(node);
-        // Reset config state
-        setPricingOptions([]);
-        setSelectedPrice(null);
-        fetchPricing(node.data.serviceId);
-    };
-
-    const fetchPricing = async (serviceId) => {
-        setConfigLoading(true);
-        try {
-            // Fetch default/initial options. Ideally we support filtering here.
-            // For MVP builder, we just fetch a page of options.
-            const res = await fetch(`/api/pricing/${serviceId}?page=1&page_size=50`);
-            const data = await res.json();
-            setPricingOptions(data.items || []);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setConfigLoading(false);
-        }
-    };
-
-    const applyConfiguration = () => {
-        if (!selectedNode || !selectedPrice) return;
-
-        setNodes((nds) =>
-            nds.map((node) => {
-                if (node.id === selectedNode.id) {
-                    return {
-                        ...node,
-                        data: {
-                            ...node.data,
-                            cost: parseFloat(selectedPrice.price) || 0,
-                            details: selectedPrice.description,
-                            configuration: selectedPrice
-                        },
-                    };
-                }
-                return node;
-            })
-        );
-        setSelectedNode(null); // Deselect after apply
-    };
-
-    const handleExportJSON = () => {
-        const exportData = {
-            nodes,
-            edges,
-            totalCost,
-            generatedAt: new Date().toISOString()
-        };
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'architecture_cost.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    };
-
-    const handleExportPNG = useCallback(() => {
-        if (reactFlowWrapper.current === null) {
-            return;
-        }
-
-        toPng(reactFlowWrapper.current, { cacheBust: true, })
-            .then((dataUrl) => {
-                const link = document.createElement('a');
-                link.download = 'architecture-diagram.png';
-                link.href = dataUrl;
-                link.click();
-            })
-            .catch((err) => {
-                console.log(err);
-            });
-    }, [reactFlowWrapper]);
+    // Placeholder for recalculation
+    const recalculateParams = () => {
+        // Sum costs
+        const total = nodes.reduce((acc, node) => acc + (node.cost || 0), 0)
+        setTotalCost(total)
+    }
 
     return (
-        <div className="flex h-full w-full">
-            {/* Sidebar Palette */}
-            <div className="w-16 md:w-48 bg-gray-100 dark:bg-gray-800 border-r dark:border-gray-700 flex flex-col p-2 overflow-y-auto">
-                <div className="text-xs font-bold text-gray-500 mb-2 uppercase hidden md:block">Services</div>
-                {SERVICES_PALETTE.map((srv) => (
-                    <div
-                        key={srv.id}
-                        className="mb-2 p-2 bg-white dark:bg-gray-700 rounded shadow cursor-grab border dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-gray-600 flex flex-col items-center justify-center md:flex-row md:justify-start"
-                        onDragStart={(event) => {
-                            event.dataTransfer.setData('application/reactflow', 'serviceNode');
-                            event.dataTransfer.setData('serviceId', srv.id);
-                            event.dataTransfer.setData('icon', srv.icon);
-                            event.dataTransfer.setData('label', srv.label);
-                            event.dataTransfer.effectAllowed = 'move';
-                        }}
-                        draggable
-                    >
-                        <span className="text-2xl mr-0 md:mr-2">{srv.icon}</span>
-                        <span className="text-sm font-medium hidden md:block dark:text-gray-200">{srv.label}</span>
-                    </div>
-                ))}
+        <div className="card">
+            <div className="header">
+                <h1>Architecture Builder</h1>
             </div>
 
-            {/* Main Canvas */}
-            <div className="flex-1 h-full relative" ref={reactFlowWrapper}>
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={onConnect}
-                    onInit={setReactFlowInstance}
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    onNodeClick={onNodeClick}
-                    nodeTypes={nodeTypes}
-                    fitView
-                >
-                    <Controls />
-                    <MiniMap />
-                    <Background gap={12} size={1} />
-
-                    <Panel position="top-right" className="bg-white dark:bg-gray-800 p-4 rounded shadow-lg border dark:border-gray-700 flex flex-col gap-2">
-                        <div className="text-xl font-bold text-gray-800 dark:text-white">
-                            Total: ${totalCost.toFixed(2)}/mo
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ width: '200px', borderRight: '1px solid var(--border)', paddingRight: '1rem' }}>
+                    <h3>Toolbox</h3>
+                    {services?.map(s => (
+                        <div
+                            key={s.serviceId}
+                            className="service-item"
+                            onClick={() => addNode(s.serviceId)}
+                        >
+                            <Plus size={16} /> {s.label}
                         </div>
-                        <div className="flex gap-2">
-                            <button onClick={handleExportJSON} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-                                Export JSON
-                            </button>
-                            <button onClick={handleExportPNG} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-                                Export PNG
-                            </button>
-                        </div>
-                    </Panel>
-                </ReactFlow>
-            </div>
-
-            {/* Properties Panel (Right) */}
-            {selectedNode && (
-                <div className="w-80 bg-white dark:bg-gray-800 border-l dark:border-gray-700 p-4 overflow-y-auto absolute right-0 top-0 bottom-0 shadow-xl z-10 transition-transform">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="font-bold text-lg dark:text-white">Configure Node</h2>
-                        <button onClick={() => setSelectedNode(null)} className="text-gray-500 hover:text-gray-700">✕</button>
-                    </div>
-
-                    <div className="mb-4">
-                        <div className="text-sm font-semibold text-gray-500">Service</div>
-                        <div className="text-lg text-blue-600 dark:text-blue-400 font-bold">{selectedNode.data.label}</div>
-                    </div>
-
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Pricing Option</label>
-                        {configLoading ? (
-                            <div className="text-sm text-gray-500">Loading options...</div>
-                        ) : (
-                            <div className="max-h-60 overflow-y-auto border rounded dark:border-gray-700">
-                                {pricingOptions.map((opt, idx) => (
-                                    <div
-                                        key={idx}
-                                        onClick={() => setSelectedPrice(opt)}
-                                        className={`p-2 text-sm cursor-pointer border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${selectedPrice === opt ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
-                                    >
-                                        <div className="font-semibold dark:text-gray-200">${opt.price} /{opt.unit}</div>
-                                        <div className="text-xs text-gray-500">{opt.description}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        <p className="text-xs text-gray-400 mt-1">Showing top 50 results. Use the full calculator for advanced filtering.</p>
-                    </div>
-
-                    <button
-                        onClick={applyConfiguration}
-                        disabled={!selectedPrice}
-                        className={`w-full py-2 rounded font-bold ${selectedPrice ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                    >
-                        Apply Configuration
-                    </button>
+                    ))}
                 </div>
-            )}
-        </div>
-    );
-};
 
-export default () => (
-    <ReactFlowProvider>
-        <ArchitectureBuilder />
-    </ReactFlowProvider>
-);
+                <div style={{ flex: 1, minHeight: '400px', background: 'var(--bg-primary)', borderRadius: 'var(--radius)', padding: '1rem', position: 'relative' }}>
+                    {nodes.length === 0 && (
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-secondary)' }}>
+                            Click services to add nodes
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                        {nodes.map(node => (
+                            <div key={node.id} className="card" style={{ width: '200px', padding: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                    <strong>{node.label}</strong>
+                                    <X size={16} style={{ cursor: 'pointer' }} onClick={() => removeNode(node.id)} />
+                                </div>
+                                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                    Cost: ${node.cost}
+                                </div>
+                                <button className="btn" style={{ fontSize: '0.8rem', marginTop: '0.5rem', padding: '0.3rem 0.5rem', width: '100%' }}>
+                                    Configure
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <h2>Total Estimated Cost: ${totalCost.toFixed(2)}/mo</h2>
+            </div>
+        </div>
+    )
+}

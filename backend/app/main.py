@@ -1,29 +1,47 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import services, pricing, estimate
+from app.api import estimate_router, pricing_router, registry
+import json
+import os
 
-app = FastAPI(title="AWS Cost Estimator API")
+app = FastAPI(title="AWS Cost Estimation Platform")
 
-origins = [
-    "http://localhost:3000",
-    "http://localhost:5173", # Vite default
-    "*"
-]
-
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(services.router, prefix="/api/services", tags=["Services"])
-app.include_router(pricing.router, prefix="/api/pricing", tags=["Pricing"])
-app.include_router(estimate.router, prefix="/api/estimate", tags=["Estimate"])
-from app.api import export
-app.include_router(export.router, prefix="/api/export", tags=["Export"])
+# Routes
+app.include_router(estimate_router.router, prefix="/api/estimate", tags=["Estimate"])
+app.include_router(pricing_router.router, prefix="/api/pricing", tags=["Pricing"])
+
+@app.get("/api/services")
+async def list_services():
+    return registry.registry.get_all_services()
+
+@app.get("/api/services/{service_id}/metadata")
+async def get_service_metadata(service_id: str):
+    # This should return the metadata from service_metadata.json filtered by service
+    # Or prompt the service metadata module?
+    # "GET /api/services/{service}/metadata"
+    # "Metadata engine ... Save to service_metadata.json"
+    
+    # Let's read service_metadata.json
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    meta_path = os.path.join(base_dir, 'service_metadata.json')
+    
+    if not os.path.exists(meta_path):
+        return {}
+        
+    with open(meta_path, 'r') as f:
+        data = json.load(f)
+        
+    return data.get(service_id, {})
 
 @app.get("/")
-def read_root():
-    return {"message": "AWS Cost Estimator API is running"}
+async def root():
+    return {"message": "AWS Cost Estimation API is running"}
