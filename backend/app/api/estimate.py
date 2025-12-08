@@ -185,10 +185,92 @@ def estimate_s3(req: S3EstimateRequest):
     request_cost = (requests_count / 1000) * req_rate
     
     # 3. Data Transfer (Out)
-    # AWS Data Transfer is complex (first 100GB free, etc).
-    # Simple approx: $0.09/GB for generic internet out
-    dt_cost = getattr(req, 'data_transfer_gb', 0) * 0.09
+    # AWS Data Transfer Tiering
+    # 1. Query for "Data Transfer" in this region
+    # 2. Filter for transferType="AWS Outbound" (Internet)
+    # 3. Sort by beginRange
     
+    dt_gb = getattr(req, 'data_transfer_gb', 0)
+    dt_cost = 0.0
+    
+    # We need to find all tiers
+    # Use index.query to find all candidates
+    dt_items = index.query({"region": region, "family": "Data Transfer"})
+    
+    # Filter for AWS Outbound
+    outbound_tiers = []
+    for item in dt_items:
+        if item.get("transferType") == "AWS Outbound":
+            outbound_tiers.append(item)
+    
+    # Sort by range
+    # Tiers might be: 0-0.097GB ($0), 0.097-10TB, etc. Or just 0-100GB ($0).
+    # Normalized beginRange is string, convert carefully.
+    
+    def get_range_start(i):
+        try:
+            return float(i.get("beginRange", 0))
+        except:
+            return 0.0
+
+    outbound_tiers.sort(key=get_range_start)
+    
+    remaining_gb = dt_gb
+    previous_max = 0
+    
+    # Logic: AWS tiers are usually defined as:
+    # Tier 1: 0 - 100 GB (Price $0)
+    # Tier 2: 100 GB - 10 TB ...
+    
+    # However, Pricing API sometimes returns them weirdly.
+    # We will iterate through sorted tiers and fill the bucket.
+    
+    # If no tiers found (e.g. metadata missing), fallback to simple $0.09
+    if not outbound_tiers:
+        dt_cost = dt_gb * 0.09
+    else:
+        for tier in outbound_tiers:
+            if remaining_gb <= 0: break
+            
+            try:
+                begin = float(tier.get("beginRange", 0))
+                end = float(tier.get("endRange", "inf") if tier.get("endRange") != "Inf" else float("inf"))
+                price = float(tier.get("price", 0))
+                
+                # AWS API ranges are cumulative usually? No, they are bands.
+                # Band size = end - begin
+                # But notice begin starts at 0 sometimes for multiple tiers? No.
+                # US-East-1 S3 Data Transfer:
+                # 0 - 100 GB: $0
+                # 100 GB - 10 TB: $0.09
+                # ...
+                
+                # Check if this tier is applicable to current usage segment
+                # We need to check gaps? Assuming sorted contiguous.
+                
+                # If tier starts after our previous max, gap?
+                # Actually, simpler logic:
+                # Capacity of this tier = end - begin
+                # But 'begin' is absolute.
+                
+                # Effective capacity for this step:
+                # We are filling from 0 up to dt_gb.
+                
+                tier_capacity = end - begin
+                
+                # How much of our total usage falls into this [begin, end] bucket?
+                # Intersection of [0, dt_gb] and [begin, end]
+                
+                overlap_start = max(0, begin)
+                overlap_end = min(dt_gb, end)
+                
+                if overlap_end > overlap_start:
+                    usage_in_tier = overlap_end - overlap_start
+                    dt_cost += usage_in_tier * price
+            except Exception as e:
+                print(f"Error calculating tier {tier}: {e}")
+                continue
+
     total = storage_cost + request_cost + dt_cost
     
     return {
