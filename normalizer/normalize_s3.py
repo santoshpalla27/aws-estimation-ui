@@ -10,6 +10,7 @@ RAW_FILE = os.path.join(BASE_DIR, "data", "raw", "s3_pricing.json")
 OUTPUT_FILE = os.path.join(BASE_DIR, "data", "normalized", "s3.json")
 DB_FILE = os.path.join(BASE_DIR, "data", "s3_temp.db")
 
+
 def init_db(cursor):
     cursor.execute('DROP TABLE IF EXISTS products')
     cursor.execute('''
@@ -19,7 +20,10 @@ def init_db(cursor):
             product_family TEXT,
             storage_class TEXT,
             volume_type TEXT,
-            group_attr TEXT
+            group_attr TEXT,
+            transfer_type TEXT,
+            from_loc TEXT,
+            to_loc TEXT
         )
     ''')
     cursor.execute('DROP TABLE IF EXISTS prices')
@@ -28,7 +32,10 @@ def init_db(cursor):
             sku TEXT,
             unit TEXT,
             price REAL,
-            description TEXT
+            description TEXT,
+            begin_range TEXT,
+            end_range TEXT,
+            UNIQUE(sku, begin_range, end_range)
         )
     ''') 
 
@@ -45,12 +52,10 @@ def parse_products(cursor, file_path):
         for sku, product in products:
             attr = product.get('attributes', {})
             
-            # S3 has many families: Storage, Data Transfer, API Request, etc.
             fam = attr.get('productFamily')
-            if fam not in ['Storage', 'API Request', 'Fee']: # Filter out Transfer for now if too complex
-                # Actually user wants 'Data transfer' calculator. We should include it.
-                # However, Data Transfer is often shared or global.
-                pass 
+            # Allow Storage, API Request, Fee, and Data Transfer
+            if fam not in ['Storage', 'API Request', 'Fee', 'Data Transfer']:
+                continue 
             
             region = resolve_region(attr)
             
@@ -60,19 +65,23 @@ def parse_products(cursor, file_path):
 
             s_class = attr.get('storageClass')
             vol_type = attr.get('volumeType')
-            # 'group' is essential for identifying API Tier1 vs Tier2
             group = attr.get('group') 
+            
+            # Data Transfer attributes
+            transfer_type = attr.get('transferType')
+            from_loc = attr.get('fromLocation')
+            to_loc = attr.get('toLocation')
 
-            batch.append((sku, region, fam, s_class, vol_type, group))
+            batch.append((sku, region, fam, s_class, vol_type, group, transfer_type, from_loc, to_loc))
             
             if len(batch) >= 10000:
-                cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?,?)", batch)
+                cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?,?,?,?,?)", batch)
                 batch = []
                 count += 10000
                 print(f"Products processed: {count}...", end='\r')
         
         if batch:
-            cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?,?)", batch)
+            cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?,?,?,?,?)", batch)
     print(f"\nProducts done. Discarded {discard_count} records due to missing region.")
 
 def parse_terms(cursor, file_path):
@@ -87,24 +96,28 @@ def parse_terms(cursor, file_path):
                     price_unit = dim.get('pricePerUnit', {}).get('USD')
                     unit = dim.get('unit')
                     desc = dim.get('description')
+                    begin_r = dim.get('beginRange')
+                    end_r = dim.get('endRange')
                     
                     if price_unit:
-                        batch.append((sku, unit, float(price_unit), desc))
+                        batch.append((sku, unit, float(price_unit), desc, begin_r, end_r))
             
             if len(batch) >= 10000:
-                cursor.executemany("INSERT OR IGNORE INTO prices VALUES (?,?,?,?)", batch)
+                cursor.executemany("INSERT OR IGNORE INTO prices VALUES (?,?,?,?,?,?)", batch)
                 batch = []
                 count += 10000
                 print(f"Terms processed: {count}...", end='\r')
         
         if batch:
-            cursor.executemany("INSERT OR IGNORE INTO prices VALUES (?,?,?,?)", batch)
+            cursor.executemany("INSERT OR IGNORE INTO prices VALUES (?,?,?,?,?,?)", batch)
     print("\nTerms done.")
 
 def export_json(cursor, output_file):
     print("Exporting S3 to JSON...")
     cursor.execute('''
-        SELECT p.region, p.product_family, p.storage_class, p.group_attr, pr.unit, pr.price
+        SELECT p.region, p.product_family, p.storage_class, p.group_attr, 
+               p.transfer_type, p.from_loc, p.to_loc,
+               pr.unit, pr.price, pr.begin_range, pr.end_range
         FROM products p
         JOIN prices pr ON p.sku = pr.sku
     ''')
@@ -112,17 +125,25 @@ def export_json(cursor, output_file):
     rows = cursor.fetchall()
     
     normalized = []
-    # Reduce size
     for r in rows:
-        normalized.append({
+        item = {
             "service": "S3",
             "region": r[0],
             "family": r[1],
-            "class": r[2],
-            "group": r[3],
-            "unit": r[4],
-            "price": r[5]
-        })
+            "unit": r[7],
+            "price": r[8]
+        }
+        
+        # Add optional fields only if they exist to keep JSON clean
+        if r[2]: item["class"] = r[2]
+        if r[3]: item["group"] = r[3]
+        if r[4]: item["transferType"] = r[4]
+        if r[5]: item["fromLocation"] = r[5]
+        if r[6]: item["toLocation"] = r[6]
+        if r[9]: item["beginRange"] = r[9]
+        if r[10]: item["endRange"] = r[10]
+        
+        normalized.append(item)
     
     with open(output_file, 'w') as f:
         json.dump(normalized, f, indent=0)
