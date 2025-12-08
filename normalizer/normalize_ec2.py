@@ -38,6 +38,8 @@ def init_db(cursor):
     # User said "Spot toggle" in features. Bulk API often *doesn't* have Spot.
     # We will focus on OnDemand/Reserved for now.
 
+from region_utils import resolve_region
+
 def parse_products(cursor, file_path):
     print("Parsing Products...")
     with open(file_path, 'rb') as f:
@@ -46,6 +48,7 @@ def parse_products(cursor, file_path):
         products = ijson.kvitems(f, 'products')
         
         count = 0
+        discard_count = 0
         batch = []
         for sku, product in products:
             attr = product.get('attributes', {})
@@ -54,11 +57,14 @@ def parse_products(cursor, file_path):
             if attr.get('productFamily') != 'Compute Instance':
                 continue
 
-            region = attr.get('regionCode', 'us-east-1') # specific field 'regionCode' exists in newer files? 
-            # Often it's 'location' (Human readable) -> needs mapping? 
-            # Wait, AWS Bulk API 1.0 often doesn't have regionCode in attributes?
-            # It usually splits by region file? NO, the link was `index.json` which is ALL REGIONS (7GB).
-            # If so, 'regionCode' should be in attributes.
+            # Robust Region Resolution
+            region = resolve_region(attr)
+            
+            if not region:
+                discard_count += 1
+                if discard_count % 1000 == 0:
+                     print(f"Discarded {discard_count} records (No Region found)...", end='\r')
+                continue
             
             # Attributes
             instance_type = attr.get('instanceType')
@@ -78,7 +84,7 @@ def parse_products(cursor, file_path):
         
         if batch:
             cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?,?,?,?)", batch)
-    print("\nProducts done.")
+    print(f"\nProducts done. Discarded {discard_count} records due to missing region.")
 
 def parse_terms(cursor, file_path):
     print("Parsing Terms (OnDemand)...")

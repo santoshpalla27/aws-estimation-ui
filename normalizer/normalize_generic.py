@@ -25,18 +25,27 @@ def normalize_generic(service_name, raw_file, output_file):
     # 1. Products
     print(f"  Parsing Products...")
     try:
+        from region_utils import resolve_region
+    except ImportError:
+        # Fallback if running standalone in wrong context
+        sys.path.append(BASE_DIR)
+        from region_utils import resolve_region
+        
+    try:
         with open(raw_file, 'rb') as f:
             # ijson generator
             products = ijson.kvitems(f, 'products')
             batch = []
             count = 0
+            discard_count = 0
             
             for sku, product in products:
                 attr = product.get('attributes', {})
-                region = attr.get('regionCode', 'us-east-1') # specific field
-                if not region and 'location' in attr:
-                     # Heuristic for region if code missing?
-                     pass
+                region = resolve_region(attr)
+                
+                if not region:
+                    discard_count += 1
+                    continue
                 
                 # Store attributes as JSON string
                 batch.append((sku, region, json.dumps(attr)))
@@ -49,6 +58,9 @@ def normalize_generic(service_name, raw_file, output_file):
             
             if batch:
                  cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?)", batch)
+            
+            if discard_count > 0:
+                print(f"\n  Discarded {discard_count} products due to missing region.")
                  
     except Exception as e:
         print(f"  Error parsing products: {e}")

@@ -31,12 +31,15 @@ def init_db(cursor):
         )
     ''') 
 
+from region_utils import resolve_region
+
 def parse_products(cursor, file_path):
     print("Parsing S3 Products...")
     with open(file_path, 'rb') as f:
         products = ijson.kvitems(f, 'products')
         
         count = 0
+        discard_count = 0
         batch = []
         for sku, product in products:
             attr = product.get('attributes', {})
@@ -48,7 +51,12 @@ def parse_products(cursor, file_path):
                 # However, Data Transfer is often shared or global.
                 pass 
             
-            region = attr.get('regionCode', 'us-east-1')
+            region = resolve_region(attr)
+            
+            if not region:
+                discard_count += 1
+                continue
+
             s_class = attr.get('storageClass')
             vol_type = attr.get('volumeType')
 
@@ -62,7 +70,7 @@ def parse_products(cursor, file_path):
         
         if batch:
             cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?)", batch)
-    print("\nProducts done.")
+    print(f"\nProducts done. Discarded {discard_count} records due to missing region.")
 
 def parse_terms(cursor, file_path):
     print("Parsing S3 Terms...")
