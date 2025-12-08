@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import estimate_router, pricing_router, registry
+from .api import estimate_router, pricing_router, registry
 import json
 import os
 
