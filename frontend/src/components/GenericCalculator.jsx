@@ -182,33 +182,108 @@ const GenericCalculator = ({ serviceId, onAddEstimate }) => {
                             onChange={(val) => handleFilterChange(attr, val)}
                         />
                     ))}
-                    <div className="flex-1">
-                        <label className="block text-gray-600 dark:text-gray-400 text-xs uppercase font-bold">Quantity</label>
-                        <input
-                            type="number"
-                            min="1"
-                            value={quantity}
-                            onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                            className="w-24 p-2 border rounded dark:bg-gray-700 dark:text-white mt-1"
-                        />
-                    </div>
-                    <div className="text-right">
-                        <div className="text-sm text-gray-500">Total Monthly Cost</div>
-                        <div className="text-2xl font-bold dark:text-white">
-                            ${selectedPrice ? (parseFloat(selectedPrice.price) * quantity).toFixed(2) : '0.00'}
-                        </div>
+                </div>
+            </div>
+
+            {/* Results */}
+            <div className="mb-4">
+                <h3 className="font-semibold mb-2 dark:text-white">Available Pricing</h3>
+                <div className="border rounded dark:border-gray-700">
+                    {loadingItems ? (
+                        <div className="p-8 text-center text-gray-500">Loading pricing options...</div>
+                    ) : (
+                        <>
+                            <div className="max-h-96 overflow-y-auto">
+                                <table className="min-w-full text-sm">
+                                    <thead className="bg-gray-100 dark:bg-gray-900 sticky top-0">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left dark:text-white">Description</th>
+                                            <th className="px-4 py-2 text-right dark:text-white">Price</th>
+                                            <th className="px-4 py-2"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pricingOptions.map((opt, idx) => (
+                                            <tr
+                                                key={idx}
+                                                className={`border-t dark:border-gray-700 cursor-pointer ${selectedPrice === opt ? 'bg-blue-50 dark:bg-blue-900' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                                onClick={() => setSelectedPrice(opt)}
+                                            >
+                                                <td className="px-4 py-3 dark:text-gray-300">
+                                                    <div className="font-medium">{opt.description || "N/A"}</div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {Object.entries(opt.attributes || {}).slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right dark:text-white">
+                                                    ${opt.price} <span className="text-xs text-gray-500">/{opt.unit}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    {selectedPrice === opt && <span className="text-blue-600">Selected</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {pricingOptions.length === 0 && (
+                                            <tr><td colSpan="3" className="p-8 text-center dark:text-gray-400">No options found. Try clearing filters.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Pagination Controls */}
+                            <div className="bg-gray-50 dark:bg-gray-800 p-2 border-t dark:border-gray-700 flex justify-between items-center">
+                                <button
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    className="px-3 py-1 bg-white dark:bg-gray-700 border rounded text-sm disabled:opacity-50"
+                                >
+                                    Previous
+                                </button>
+                                <span className="text-sm dark:text-gray-300">
+                                    Page {page} of {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={page >= totalPages}
+                                    className="px-3 py-1 bg-white dark:bg-gray-700 border rounded text-sm disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {/* Calculation */}
+            <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded mb-4 flex items-center gap-4">
+                <div className="flex-1">
+                    <label className="block text-gray-600 dark:text-gray-400 text-xs uppercase font-bold">Quantity</label>
+                    <input
+                        type="number"
+                        min="1"
+                        value={quantity}
+                        onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                        className="w-24 p-2 border rounded dark:bg-gray-700 dark:text-white mt-1"
+                    />
+                </div>
+                <div className="text-right">
+                    <div className="text-sm text-gray-500">Total Monthly Cost</div>
+                    <div className="text-2xl font-bold dark:text-white">
+                        ${selectedPrice ? (parseFloat(selectedPrice.price) * quantity).toFixed(2) : '0.00'}
                     </div>
                 </div>
-
-                <button
-                    onClick={handleAdd}
-                    disabled={!selectedPrice}
-                    className={`w-full py-3 rounded font-bold shadow transition ${selectedPrice ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                >
-                    ADD TO ESTIMATE
-                </button>
             </div>
-            );
+
+            <button
+                onClick={handleAdd}
+                disabled={!selectedPrice}
+                className={`w-full py-3 rounded font-bold shadow transition ${selectedPrice ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            >
+                ADD TO ESTIMATE
+            </button>
+        </div>
+    );
 };
 
-            export default GenericCalculator;
+export default GenericCalculator;
