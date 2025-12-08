@@ -31,57 +31,68 @@ from app.api.pricing import load_pricing
 
 @router.post("/ec2", response_model=EstimateResponse)
 def estimate_ec2(req: EC2EstimateRequest):
-    pricing = load_pricing("ec2")
+    index = load_pricing("ec2")
+    if not index:
+         raise HTTPException(status_code=500, detail="Pricing data not available")
+
+    # Use O(1) query instead of iteration
+    # Default to Linux / Shared tenancy if finding multiple matches
+    results = index.query({"region": req.region, "instance": req.instance_type})
     
-    # Find price
-    # Naive search
     match = None
-    for item in pricing:
-        if item.get("region") == req.region and item.get("instance") == req.instance_type:
+    # Refine match (prefer Linux + Shared)
+    for item in results:
+        attrs = item.get("attributes", {})
+        # Check OS (some data might not have 'operatingSystem' if it's generic, but usually it does)
+        os_type = attrs.get("operatingSystem", "Linux")
+        tenancy = attrs.get("tenancy", "Shared")
+        
+        if os_type == "Linux" and tenancy == "Shared":
             match = item
             break
-            
+    
+    # Fallback: take first result if specific Linux/Shared not found but instance/region matched
+    if not match and results:
+        match = results[0]
+
     if not match:
-        raise HTTPException(status_code=404, detail="Instance type not found in region")
+        raise HTTPException(status_code=404, detail=f"Instance {req.instance_type} not found in {req.region}")
     
     # Cost
-    hourly_rate = float(match.get("ondemand", 0)) # default ondemand
-    compute_cost = hourly_rate * req.hours_per_month
+    # Normalized data stores prices as strings, ensuring precision
+    hourly_rate = float(match.get("ondemand", 0)) 
+    
+    hours = req.hours_per_month
+    if req.term == "reserved_1yr":
+        # Check for reserved price in data or apply standard discount heuristic
+        # For now, MVP applies heuristic if real reserved data missing
+        rs_rate = float(match.get("reserved_1yr", 0))
+        if rs_rate > 0:
+            hourly_rate = rs_rate
+        else:
+            hourly_rate *= 0.6 # Fallback ~40% discount
+            
+    compute_cost = hourly_rate * hours
     
     # EBS Storage Calculation
-    # Load EBS pricing (Generic Normalizer output -> amazonebs.json)
-    ebs_pricing = load_pricing("amazonebs")
+    ebs_index = load_pricing("amazonebs")
     
     ebs_rate = 0.08 # Fallback (gp3 us-east-1 approx)
-    if ebs_pricing:
-        # Find price for Region + Volume Type
-        # EBS attributes often use 'volumeApiName' (gp2, io1) or 'volumeType' (General Purpose SSD)
-        # We will try to match req.ebs_volume_type (e.g. 'gp3') against volumeApiName or abbr.
+    if ebs_index:
+        # Use query for region first
+        ebs_items = ebs_index.query({"region": req.region})
         
-        target_vol = req.ebs_volume_type.lower() if hasattr(req, 'ebs_volume_type') else 'gp3'
+        target_vol = (req.ebs_volume_type or 'gp3').lower()
         
-        for item in ebs_pricing:
-            if item.get("region") != req.region:
-                continue
-                
+        for item in ebs_items:
             attrs = item.get("attributes", {})
-            if not isinstance(attrs, dict): attrs = {}
-            
-            # Check for API Name (gp2, gp3, io1, sc1, st1, standard)
-            # AWS often puts 'gp2' in 'volumeApiName'
             api_name = attrs.get("volumeApiName", "").lower()
             
-            # Or check description or name
-            name = attrs.get("usagetype", "").lower() # sometimes helpful
-            
-            # Heuristic match
             if target_vol in api_name:
-                # Found it. Check unit (GB-Mo)
-                if "GB-Mo" in str(item.get("unit", "")):
-                     rate_str = item.get("price") or item.get("ondemand")
-                     if rate_str:
-                         ebs_rate = float(rate_str)
-                         break
+                 rate_str = item.get("price") or item.get("ondemand")
+                 if rate_str:
+                     ebs_rate = float(rate_str)
+                     break
                          
     storage_cost = req.storage_gb * ebs_rate
     
@@ -90,10 +101,11 @@ def estimate_ec2(req: EC2EstimateRequest):
     return {
         "monthly_cost": round(total, 2),
         "details": {
-            "compute": round(compute_cost, 2),
-            "storage": round(storage_cost, 2),
+            "compute_hourly": round(hourly_rate, 6),
+            "compute_monthly": round(compute_cost, 2),
+            "storage_monthly": round(storage_cost, 2),
             "storage_rate": ebs_rate,
-            "storage_type": req.ebs_volume_type if hasattr(req, 'ebs_volume_type') else 'gp3'
+            "storage_type": req.ebs_volume_type or 'gp3'
         }
     }
 
