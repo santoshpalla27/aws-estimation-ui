@@ -37,7 +37,7 @@ def estimate_ec2(req: EC2EstimateRequest):
 
     # Use O(1) query instead of iteration
     # Default to Linux / Shared tenancy if finding multiple matches
-    results = index.query({"region": req.region, "instance": req.instance_type})
+    results, _ = index.query({"region": req.region, "instance": req.instance_type}, limit=100)
     
     match = None
     # Refine match (prefer Linux + Shared)
@@ -80,7 +80,7 @@ def estimate_ec2(req: EC2EstimateRequest):
     ebs_rate = 0.08 # Fallback (gp3 us-east-1 approx)
     if ebs_index:
         # Use query for region first
-        ebs_items = ebs_index.query({"region": req.region})
+        ebs_items, _ = ebs_index.query({"region": req.region}, limit=1000)
         
         target_vol = (req.ebs_volume_type or 'gp3').lower()
         
@@ -195,7 +195,7 @@ def estimate_s3(req: S3EstimateRequest):
     
     # We need to find all tiers
     # Use index.query to find all candidates
-    dt_items = index.query({"region": region, "family": "Data Transfer"})
+    dt_items, _ = index.query({"region": region, "family": "Data Transfer"}, limit=1000)
     
     # Filter for AWS Outbound
     outbound_tiers = []

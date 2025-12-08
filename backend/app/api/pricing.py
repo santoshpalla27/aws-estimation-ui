@@ -51,11 +51,12 @@ class PricingIndex:
         
         self.indices[field] = idx
 
-    def query(self, filters: Dict[str, str], limit=100) -> List[Dict]:
+    def query(self, filters: Dict[str, str], offset: int = 0, limit: int = 20) -> tuple[List[Dict], int]:
         """
-        O(1) lookup if filter key matches index, else Scan.
+        Memory-efficient pagination. Returns (page_items, total_count).
+        Iterates through candidates to count matches but only stores 'limit' items.
         """
-        # 1. Select best index (Smallest candidate set)
+        # 1. Select best index
         best_field = None
         candidate_indices = None
         smallest_count = float('inf')
@@ -64,8 +65,7 @@ class PricingIndex:
             if key in self.indices:
                 matches = self.indices[key].get(value)
                 if matches is None:
-                    # Index exists, but value not found -> 0 results guaranteed
-                    return []
+                    return [], 0
                 
                 if len(matches) < smallest_count:
                     smallest_count = len(matches)
@@ -73,18 +73,21 @@ class PricingIndex:
                     best_field = key
         
         # 2. Iterate candidates
-        results = []
+        page_items = []
+        total_count = 0
         
-        # If no index matched, scan entire dataset (O(N))
-        # This only happens if filtering by a non-indexed attribute
         iterable = range(len(self.data)) if candidate_indices is None else candidate_indices
+        
+        # Upper bound for iteration if we don't need total count? 
+        # But we usually need total_count for pagination UI.
+        # We must iterate all matches to count them.
         
         for i in iterable:
             item = self.data[i]
             match = True
             
             for k, v in filters.items():
-                if k == best_field: continue # Skip the field we used for indexing
+                if k == best_field: continue 
                 
                 val = self._get_val(item, k)
                 if str(val) != v:
@@ -92,10 +95,11 @@ class PricingIndex:
                     break
             
             if match:
-                results.append(item)
-                if len(results) >= limit: break
+                if total_count >= offset and len(page_items) < limit:
+                    page_items.append(item)
+                total_count += 1
                 
-        return results
+        return page_items, total_count
 
     def get_unique_values(self, field, filters=None):
         # If no filters, and field is indexed, use keys directly O(1)
@@ -104,7 +108,10 @@ class PricingIndex:
             
         # Otherwise, query and collect
         # This supports cascade filtering (e.g. get instance types for region=us-east-1)
-        dataset = self.query(filters or {}, limit=100000) # High limit for dropdowns
+        # Otherwise, query and collect
+        # This supports cascade filtering (e.g. get instance types for region=us-east-1)
+        # Use high limit, offset 0
+        dataset, _ = self.query(filters or {}, offset=0, limit=100000)
         values = set()
         for item in dataset:
             val = self._get_val(item, field)
@@ -173,15 +180,11 @@ def get_pricing_options(
     # To properly support large datasets, query() limit should be removed or handled.
     # With index, we get candididates.
     
-    results = index.query(params, limit=100000) # Increased limit for pagination support
-    
-    total_items = len(results)
-    total_pages = (total_items + page_size - 1) // page_size
-    
+    # Optimized query
     start = (page - 1) * page_size
-    end = start + page_size
+    paginated_items, total_items = index.query(params, offset=start, limit=page_size)
     
-    paginated_items = results[start:end]
+    total_pages = (total_items + page_size - 1) // page_size if page_size > 0 else 1
     
     return {
         "items": paginated_items,
