@@ -18,13 +18,14 @@ services:
 
   # Optional: Run downloader periodically or manually
   downloader:
-    image: python:3.9-slim
+    build: ./downloader
     volumes:
       - ./data:/data
       - ./downloader:/downloader
       - ./normalizer:/normalizer
       - ./metadata:/metadata
     working_dir: /
-    command: sh -c "pip install -r /downloader/requirements.txt && python /downloader/pricing_downloader.py && python /normalizer/main.py"
+    # No need to pip install anymore
+    command: sh -c "python /downloader/pricing_downloader.py && python /normalizer/main.py"
     profiles:
       - tools # Only run when explicitly requested e.g. docker-compose --profile tools up
