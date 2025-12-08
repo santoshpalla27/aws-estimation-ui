@@ -4,12 +4,13 @@ const S3Calculator = ({ onAddEstimate }) => {
     const [region, setRegion] = useState('us-east-1');
     const [storageClass, setStorageClass] = useState('Standard');
     const [storage, setStorage] = useState(100);
-    const [requests, setRequests] = useState(1000);
+    const [requests, setRequests] = useState(1000); // Tier 1 approx
+    const [dataTransfer, setDataTransfer] = useState(0);
     const [estimate, setEstimate] = useState(null);
 
     useEffect(() => {
         calculate();
-    }, [region, storageClass, storage]);
+    }, [region, storageClass, storage, requests, dataTransfer]);
 
     const calculate = async () => {
         try {
@@ -18,8 +19,10 @@ const S3Calculator = ({ onAddEstimate }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     region,
+                    storage_class: storageClass,
                     storage_gb: storage,
-                    requests: requests
+                    requests: requests,
+                    data_transfer_gb: dataTransfer
                 })
             });
             const data = await res.json();
@@ -34,7 +37,7 @@ const S3Calculator = ({ onAddEstimate }) => {
             onAddEstimate({
                 service: 'S3',
                 region,
-                details: `${storageClass}, ${storage}GB`,
+                details: `${storageClass}, ${storage}GB, ${dataTransfer}GB Transfer`,
                 cost: estimate.monthly_cost
             });
         }
@@ -56,9 +59,12 @@ const S3Calculator = ({ onAddEstimate }) => {
             <div className="mb-4">
                 <label className="block text-gray-700 dark:text-gray-300 mb-2">Storage Class</label>
                 <select value={storageClass} onChange={(e) => setStorageClass(e.target.value)} className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white">
-                    <option value="Standard">Standard</option>
+                    <option value="Standard">S3 Standard</option>
                     <option value="Intelligent-Tiering">Intelligent-Tiering</option>
-                    <option value="Glacier">Glacier</option>
+                    <option value="Standard-IA">Standard-IA</option>
+                    <option value="One Zone-IA">One Zone-IA</option>
+                    <option value="Glacier">Glacier Instant Retrieval</option>
+                    <option value="Deep Archive">Glacier Deep Archive</option>
                 </select>
             </div>
 
@@ -67,26 +73,54 @@ const S3Calculator = ({ onAddEstimate }) => {
                     <label className="block text-gray-700 dark:text-gray-300 mb-2">Storage (GB)</label>
                     <input
                         type="number"
+                        min="0"
                         value={storage}
-                        onChange={(e) => setStorage(e.target.value)}
+                        onChange={(e) => setStorage(parseFloat(e.target.value))}
                         className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
                     />
                 </div>
                 <div>
-                    <label className="block text-gray-700 dark:text-gray-300 mb-2">Requests (Monthly)</label>
+                    <label className="block text-gray-700 dark:text-gray-300 mb-2">Monthly Requests</label>
                     <input
                         type="number"
+                        min="0"
                         value={requests}
-                        onChange={(e) => setRequests(e.target.value)}
+                        onChange={(e) => setRequests(parseFloat(e.target.value))}
+                        className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
+                    />
+                </div>
+                <div className="col-span-2">
+                    <label className="block text-gray-700 dark:text-gray-300 mb-2">Data Transfer Out (GB)</label>
+                    <input
+                        type="number"
+                        min="0"
+                        value={dataTransfer}
+                        onChange={(e) => setDataTransfer(parseFloat(e.target.value))}
                         className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
                     />
                 </div>
             </div>
 
             <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded mb-4">
-                <p className="text-lg font-bold text-center dark:text-white">
-                    Estimated: ${estimate?.monthly_cost || '0.00'} / mo
-                </p>
+                <h3 className="text-sm font-bold text-gray-500 mb-2 uppercase">Cost Breakdown</h3>
+
+                <div className="flex justify-between items-center mb-1 text-sm">
+                    <span className="dark:text-gray-300">Storage</span>
+                    <span className="font-mono dark:text-white">${estimate?.details?.storage || '0.00'}</span>
+                </div>
+                <div className="flex justify-between items-center mb-1 text-sm">
+                    <span className="dark:text-gray-300">Requests</span>
+                    <span className="font-mono dark:text-white">${estimate?.details?.requests || '0.00'}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2 text-sm">
+                    <span className="dark:text-gray-300">Data Transfer</span>
+                    <span className="font-mono dark:text-white">${estimate?.details?.data_transfer || '0.00'}</span>
+                </div>
+
+                <div className="border-t dark:border-gray-700 pt-2 flex justify-between items-center font-bold text-lg dark:text-white">
+                    <span>Total Estimated:</span>
+                    <span>${estimate?.monthly_cost || '0.00'} / mo</span>
+                </div>
             </div>
 
             <button

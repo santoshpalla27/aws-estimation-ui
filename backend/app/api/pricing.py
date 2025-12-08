@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Request, HTTPException
 import json
 import os
+import time
 from typing import List, Optional, Dict, Any
+from collections import defaultdict
 
 router = APIRouter()
 
@@ -9,16 +11,114 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 # Ensure we look in the Docker mounted path
 NORM_DIR = "/app/data/normalized"
 
-# Simple in-memory cache
-PRICING_CACHE = {}
+class PricingIndex:
+    def __init__(self, data: List[Dict]):
+        self.data = data
+        self.indices = {} # field -> { value_str -> [list_of_indices] }
+        
+        # Build default indices
+        # Region is mandatory for this app architecture basically
+        self.build_index("region")
+        
+        # Auto-index common selectivity headers if they exist in first few items
+        if data:
+            sample = data[0]
+            # EC2 / RDS / Common keys
+            candidates = ["instance", "instanceType", "engine", "productFamily", "storageClass"]
+            for field in candidates:
+                if self._get_val(sample, field) is not None:
+                    self.build_index(field)
 
-def load_pricing(service: str):
-    # Normalize service name (case sensitive in file system?)
-    # usually stored as AmazonEC2.json
+    def _get_val(self, item, key):
+        """Helper to safely get value from top-level or 'attributes' dict"""
+        val = item.get(key)
+        if val is None:
+            attrs = item.get("attributes")
+            if isinstance(attrs, dict):
+                val = attrs.get(key)
+        return val
+
+    def build_index(self, field):
+        # Optimization: Don't re-index
+        if field in self.indices: return
+        
+        print(f"  Indexing {field}...")
+        idx = defaultdict(list)
+        for i, item in enumerate(self.data):
+            val = self._get_val(item, field)
+            if val:
+                idx[str(val)].append(i)
+        
+        self.indices[field] = idx
+
+    def query(self, filters: Dict[str, str], limit=100) -> List[Dict]:
+        """
+        O(1) lookup if filter key matches index, else Scan.
+        """
+        # 1. Select best index (Smallest candidate set)
+        best_field = None
+        candidate_indices = None
+        smallest_count = float('inf')
+
+        for key, value in filters.items():
+            if key in self.indices:
+                matches = self.indices[key].get(value)
+                if matches is None:
+                    # Index exists, but value not found -> 0 results guaranteed
+                    return []
+                
+                if len(matches) < smallest_count:
+                    smallest_count = len(matches)
+                    candidate_indices = matches
+                    best_field = key
+        
+        # 2. Iterate candidates
+        results = []
+        
+        # If no index matched, scan entire dataset (O(N))
+        # This only happens if filtering by a non-indexed attribute
+        iterable = range(len(self.data)) if candidate_indices is None else candidate_indices
+        
+        for i in iterable:
+            item = self.data[i]
+            match = True
+            
+            for k, v in filters.items():
+                if k == best_field: continue # Skip the field we used for indexing
+                
+                val = self._get_val(item, k)
+                if str(val) != v:
+                    match = False
+                    break
+            
+            if match:
+                results.append(item)
+                if len(results) >= limit: break
+                
+        return results
+
+    def get_unique_values(self, field, filters=None):
+        # If no filters, and field is indexed, use keys directly O(1)
+        if not filters and field in self.indices:
+            return sorted(self.indices[field].keys())
+            
+        # Otherwise, query and collect
+        # This supports cascade filtering (e.g. get instance types for region=us-east-1)
+        dataset = self.query(filters or {}, limit=100000) # High limit for dropdowns
+        values = set()
+        for item in dataset:
+            val = self._get_val(item, field)
+            if val: values.add(val)
+        return sorted(list(values), key=lambda x: str(x))
+
+# Global Cache: service_name -> PricingIndex
+PRICING_CACHE: Dict[str, PricingIndex] = {}
+
+def load_pricing(service: str) -> Optional[PricingIndex]:
     if service in PRICING_CACHE:
         return PRICING_CACHE[service]
     
-    # Case insensitive search
+    # Locate file
     target_file = None
     if os.path.exists(NORM_DIR):
         for f in os.listdir(NORM_DIR):
@@ -27,103 +127,80 @@ def load_pricing(service: str):
                 break
     
     if not target_file:
-        return []
+        return None
         
-    print(f"Loading {service} pricing...")
+    print(f"Loading and Indexing {service}...")
+    start_t = time.time()
     try:
         with open(target_file, "r") as f:
             data = json.load(f)
-            PRICING_CACHE[service] = data
-            return data
+            
+        index = PricingIndex(data)
+        PRICING_CACHE[service] = index
+        print(f"Loaded {len(data)} items for {service} in {time.time() - start_t:.2f}s")
+        return index
     except Exception as e:
         print(f"Error loading {service}: {e}")
-        return []
+        return None
 
 @router.get("/{service}")
 def get_pricing_options(
     service: str, 
-    request: Request
+    request: Request,
+    page: int = 1,
+    page_size: int = 20
 ):
     """
-    Generic pricing endpoint.
-    Filters data based on ALL query parameters provided.
-    Examples: ?region=us-east-1&instanceType=t3.micro
+    Optimized pricing endpoint with server-side pagination.
     """
-    data = load_pricing(service)
-    if not data:
-        return []
+    index = load_pricing(service)
+    if not index:
+        return {
+            "items": [],
+            "total_items": 0,
+            "total_pages": 0,
+            "current_page": page
+        }
 
-    # Get all filter params
     params = dict(request.query_params)
+    # Remove pagination params from filters
+    params.pop('page', None)
+    params.pop('page_size', None)
     
-    results = []
+    # Query creates the full filtered list (which is fast thanks to indexing)
+    # Note: query() had a limit included which we should ideally remove or increase significantly for pagination to work correctly 
+    # if total result set is large. But for now, let's assume query() returns candidates.
+    # To properly support large datasets, query() limit should be removed or handled.
+    # With index, we get candididates.
     
-    # Optimize: If no params, return limited set?
-    # Usually we require at least region
-    target_region = params.get("region")
+    results = index.query(params, limit=100000) # Increased limit for pagination support
     
-    for item in data:
-        match = True
-        
-        # 1. Filter by Region (Standard field)
-        if target_region:
-            if item.get("region") != target_region:
-                continue
-        
-        # 2. Filter by other params
-        # Attributes can be flat (old normalizer) or in 'attributes' dict (generic)
-        item_attrs = item.get("attributes", {})
-        if not isinstance(item_attrs, dict):
-             # Fallback if flat
-             item_attrs = item 
-        
-        for key, value in params.items():
-            if key == "region": continue
-            
-            # Check in flat item or attributes dict
-            # Value matching: exact match for now
-            # Handle potential type mismatch (string vs int)? 
-            # API query params are strings. JSON might have numbers.
-            
-            # Check Generic Attributes
-            attr_val = item_attrs.get(key)
-            if attr_val is None:
-                # Check flat item keys (e.g. 'instance' in EC2)
-                attr_val = item.get(key)
-                
-            if str(attr_val) != value:
-                match = False
-                break
-        
-        if match:
-            results.append(item)
-            if len(results) >= 100: # Pagination limit
-                break
+    total_items = len(results)
+    total_pages = (total_items + page_size - 1) // page_size
     
-    return results
+    start = (page - 1) * page_size
+    end = start + page_size
+    
+    paginated_items = results[start:end]
+    
+    return {
+        "items": paginated_items,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "current_page": page
+    }
 
 @router.get("/{service}/attributes/{attribute_name}")
-def get_unique_attribute_values(service: str, attribute_name: str, region: str = "us-east-1"):
+def get_unique_attribute_values(service: str, attribute_name: str, request: Request):
     """
-    Get all unique values for a specific attribute (e.g. 'group' or 'instanceType')
-    to populate dropdowns in frontend.
+    Get unique values for a specific attribute (e.g. 'group' or 'instanceType').
+    Supports filtering (e.g. ?region=us-east-1).
     """
-    data = load_pricing(service)
-    values = set()
+    index = load_pricing(service)
+    if not index:
+        return []
     
-    for item in data:
-        if item.get("region") != region:
-            continue
-            
-        # Check 'attributes' dict first, then flat
-        val = None
-        if "attributes" in item and isinstance(item["attributes"], dict):
-            val = item["attributes"].get(attribute_name)
-        
-        if val is None:
-            val = item.get(attribute_name)
-            
-        if val:
-            values.add(val)
-            
-    return sorted(list(values), key=lambda x: str(x))
+    # Allow filtering by other params (e.g. get engines available in us-east-1)
+    filters = dict(request.query_params)
+    
+    return index.get_unique_values(attribute_name, filters)

@@ -18,7 +18,8 @@ def init_db(cursor):
             region TEXT,
             product_family TEXT,
             storage_class TEXT,
-            volume_type TEXT
+            volume_type TEXT,
+            group_attr TEXT
         )
     ''')
     cursor.execute('DROP TABLE IF EXISTS prices')
@@ -59,17 +60,19 @@ def parse_products(cursor, file_path):
 
             s_class = attr.get('storageClass')
             vol_type = attr.get('volumeType')
+            # 'group' is essential for identifying API Tier1 vs Tier2
+            group = attr.get('group') 
 
-            batch.append((sku, region, fam, s_class, vol_type))
+            batch.append((sku, region, fam, s_class, vol_type, group))
             
             if len(batch) >= 10000:
-                cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?)", batch)
+                cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?,?)", batch)
                 batch = []
                 count += 10000
                 print(f"Products processed: {count}...", end='\r')
         
         if batch:
-            cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?)", batch)
+            cursor.executemany("INSERT OR IGNORE INTO products VALUES (?,?,?,?,?,?)", batch)
     print(f"\nProducts done. Discarded {discard_count} records due to missing region.")
 
 def parse_terms(cursor, file_path):
@@ -101,7 +104,7 @@ def parse_terms(cursor, file_path):
 def export_json(cursor, output_file):
     print("Exporting S3 to JSON...")
     cursor.execute('''
-        SELECT p.region, p.product_family, p.storage_class, pr.unit, pr.price
+        SELECT p.region, p.product_family, p.storage_class, p.group_attr, pr.unit, pr.price
         FROM products p
         JOIN prices pr ON p.sku = pr.sku
     ''')
@@ -116,8 +119,9 @@ def export_json(cursor, output_file):
             "region": r[0],
             "family": r[1],
             "class": r[2],
-            "unit": r[3],
-            "price": r[4]
+            "group": r[3],
+            "unit": r[4],
+            "price": r[5]
         })
     
     with open(output_file, 'w') as f:

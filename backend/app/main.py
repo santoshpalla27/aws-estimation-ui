@@ -21,6 +21,8 @@ app.add_middleware(
 app.include_router(services.router, prefix="/api/services", tags=["Services"])
 app.include_router(pricing.router, prefix="/api/pricing", tags=["Pricing"])
 app.include_router(estimate.router, prefix="/api/estimate", tags=["Estimate"])
+from app.api import export
+app.include_router(export.router, prefix="/api/export", tags=["Export"])
 
 @app.get("/")
 def read_root():

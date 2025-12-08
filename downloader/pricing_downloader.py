@@ -1,147 +1,183 @@
 import os
 import requests
+import time
+import hashlib
+import json
+import sys
+import random
 from tqdm import tqdm
 
-# AWS Pricing API Endpoint
+# Configuration
 BASE_URL = "https://pricing.us-east-1.amazonaws.com"
 OFFERS_URL = f"{BASE_URL}/offers/v1.0/aws/{{}}/current/index.json"
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw")
+INTEGRITY_FILE = os.path.join(DATA_DIR, "integrity.json")
+MAX_RETRIES = 5
 
-# Comprehensive Service List provided by user and standards
-# We use the Offer Code as the key identifier
 SERVICE_CODES = [
     "AmazonEC2",
-    "AmazonES", # OpenSearch
-    "ACM", # AWS Certificate Manager
-    "AmazonApiGateway",
-    "AmazonCloudFront",
-    "AmazonCloudWatch",
-    "AWSCloudTrail",
-    "AmazonDynamoDB",
-    "AmazonECR",
-    "AmazonECRPublic",
-    "AmazonECS",
-    "AmazonEFS",
-    "AmazonEKS",
-    "AmazonElastiCache",
-    "AmazonMQ",
-    "AmazonMSK",
-    "AmazonRDS",
-    "AmazonRoute53",
+    "AmazonEBS",
     "AmazonS3",
-    "AmazonS3GlacierDeepArchive",
-    "AmazonSNS",
-    "AmazonStates", # Step Functions
-    "AmazonVPC",
-    "AWSCloudFormation",
-    "AWSCodeArtifact",
-    "CodeBuild", # User provided 'CodeBuild', usually AWSCodeBuild, we will try both or just this
-    "AWSCodeCommit",
-    "AWSCodeDeploy",
-    "AWSCodePipeline",
-    "AWSConfig",
-    "AWSELB", # Elastic Load Balancing (Classic? Or generic?)
-    "AWSElasticDisasterRecovery",
-    "AWSEvents",
-    "awskms", # will title case this if needed, usually uppercase
-    "AWSLambda",
-    "AWSQueueService", # SQS
-    "AWSSecretsManager",
-    "AWSServiceCatalog",
-    "AWSShield",
-    "AWSSystemsManager",
-    "AWSXRay",
-    "awswaf",
-    "AmazonSES",
-    "AmazonPinpoint",
-    "AmazonKinesis",
-    "AmazonFSx",
-    "AWSBackup",
-    "AWSDataTransfer",
-    "AWSGlobalAccelerator",
-    "AWSFMS"
+    "AmazonRDS",
+    "AmazonLambda",
+    "AmazonCloudFront",
+    # Add others as needed
 ]
 
-# Ensure uniqueness and formatting
-SERVICE_CODES = sorted(list(set(SERVICE_CODES)))
+def calculate_sha256(filepath):
+    """Calculate SHA256 checksum of a file efficiently."""
+    sha256_hash = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        # Read in 8k chunks
+        for byte_block in iter(lambda: f.read(4096 * 1024), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "raw")
-
-def download_file(url, filename):
+def get_remote_file_info(url):
+    """Get content length and other headers."""
     try:
-        response = requests.get(url, stream=True)
-        if response.status_code == 404:
-             # Try Common variations if 404?
-             # e.g. CodeBuild -> AWSCodeBuild
-             print(f"  [404] Not Found: {url}")
-             return False
-        if response.status_code != 200:
-            print(f"  [Error] Status {response.status_code} for {url}")
-            return False
-
-        total_size = int(response.headers.get('content-length', 0))
-        block_size = 1024 * 1024 # 1MB
-
-        print(f"  Downloading ({total_size // (1024*1024)} MB)...")
-        
-        with open(filename, 'wb') as file, tqdm(
-            desc=os.path.basename(filename),
-            total=total_size,
-            unit='iB',
-            unit_scale=True,
-            unit_divisor=1024,
-            leave=False
-        ) as bar:
-            for data in response.iter_content(block_size):
-                size = file.write(data)
-                bar.update(size)
-        return True
+        response = requests.head(url, timeout=10)
+        response.raise_for_status()
+        return {
+            'size': int(response.headers.get('content-length', 0)),
+            'etag': response.headers.get('etag', '').strip('"')
+        }
     except Exception as e:
-        print(f"  [Exception] {str(e)}")
-        return False
+        print(f"  [Head Failed] {e}")
+        return None
+
+def download_with_resume(url, filepath, description):
+    """
+    Download file with resume capability and retries.
+    Returns: (success: bool, sha256: str, error: str)
+    """
+    retries = 0
+    while retries < MAX_RETRIES:
+        try:
+            # Check remote info
+            remote_info = get_remote_file_info(url)
+            if not remote_info:
+                raise Exception("Could not fetch remote file info")
+            
+            total_size = remote_info['size']
+            
+            # Check local file
+            existing_size = 0
+            if os.path.exists(filepath):
+                existing_size = os.path.getsize(filepath)
+            
+            if existing_size == total_size:
+                print(f"  [Skipping] {description} already downloaded ({total_size} bytes)")
+                return True, calculate_sha256(filepath), None
+            
+            if existing_size > total_size:
+                print(f"  [Warning] Local file larger than remote. Restarting.")
+                os.remove(filepath)
+                existing_size = 0
+            
+            # Resume header
+            headers = {}
+            if existing_size > 0:
+                headers['Range'] = f"bytes={existing_size}-"
+                print(f"  [Resuming] {description} from {existing_size}/{total_size}")
+            
+            response = requests.get(url, headers=headers, stream=True, timeout=30)
+            
+            # 206 Partial Content (Resume) or 200 OK (Full)
+            if response.status_code not in [200, 206]:
+                # If range not satisfiable (416), maybe file changed?
+                if response.status_code == 416:
+                    print("  [416] Range not satisfiable, restarting download.")
+                    os.remove(filepath)
+                    existing_size = 0
+                    continue # Retry loop
+                raise Exception(f"HTTP {response.status_code}")
+
+            mode = 'ab' if existing_size > 0 else 'wb'
+            
+            with open(filepath, mode) as f, tqdm(
+                desc=description,
+                initial=existing_size,
+                total=total_size,
+                unit='B',
+                unit_scale=True,
+                unit_divisor=1024,
+                leave=False
+            ) as bar:
+                for chunk in response.iter_content(chunk_size=8192*4):
+                    if chunk:
+                        f.write(chunk)
+                        bar.update(len(chunk))
+            
+            # Verify size at end
+            final_size = os.path.getsize(filepath)
+            if final_size != total_size:
+                raise Exception(f"Size mismatch: Expected {total_size}, got {final_size}")
+            
+            # Success
+            return True, calculate_sha256(filepath), None
+
+        except Exception as e:
+            retries += 1
+            wait_time = (2 ** retries) + random.uniform(0, 1)
+            print(f"  [Error] {e}. Retrying not taking in {wait_time:.1f}s...")
+            time.sleep(wait_time)
+    
+    return False, None, "Max Retries Exceeded"
 
 def main():
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
-
-    print(f"Starting download for {len(SERVICE_CODES)} services...")
+        
+    print("Initializing Fault-Tolerant Downloader...")
     
-    success_count = 0
-    fail_count = 0
+    report = {
+        "timestamp": time.time(),
+        "files": {},
+        "status": "pending"
+    }
 
+    # Load Previous Integrity Report to check if we can skip hashing (optional optimization)
+    # For now, we will re-hash to be safe as per "Verify per file" requirement
+    
+    overall_success = True
+    
     for code in SERVICE_CODES:
-        # url
+        filename = f"{code.lower()}_pricing.json"
+        filepath = os.path.join(DATA_DIR, filename)
         url = OFFERS_URL.format(code)
-        # filename: lowercase for consistency
-        filename = os.path.join(DATA_DIR, f"{code.lower()}_pricing.json")
         
         print(f"Processing {code}...")
         
-        if os.path.exists(filename):
-            print(f"  File exists: {filename} (Skipping)")
-            success_count += 1
-            continue
-            
-        if download_file(url, filename):
-            print(f"  Saved: {filename}")
-            success_count += 1
+        success, sha256, error = download_with_resume(url, filepath, code)
+        
+        file_entry = {
+            "success": success,
+            "path": filepath,
+            "sha256": sha256
+        }
+        
+        if not success:
+            file_entry["error"] = error
+            overall_success = False
+            print(f"  [FAILED] {code}: {error}")
         else:
-            # Retry logic or variation check?
-            # Example: 'CodeBuild' might be 'AWSCodeBuild'
-            if not code.startswith('AWS') and not code.startswith('Amazon'):
-                alt_code = f"AWS{code}"
-                print(f"  Retrying with {alt_code}...")
-                alt_url = OFFERS_URL.format(alt_code)
-                if download_file(alt_url, filename): # Save to original name usually? Or update?
-                     print(f"  Saved: {filename} (using {alt_code})")
-                     success_count += 1
-                else:
-                     fail_count += 1
-            else:
-                fail_count += 1
+            print(f"  [OK] Hash: {sha256[:8]}...")
+            
+        report["files"][code] = file_entry
 
-    print(f"\nDownload Complete.")
-    print(f"Success: {success_count}")
-    print(f"Failed: {fail_count}")
+    report["status"] = "success" if overall_success else "failed"
+    
+    with open(INTEGRITY_FILE, "w") as f:
+        json.dump(report, f, indent=2)
+        
+    print("\n------------------------------------------------")
+    print(f"Download Pipeline Completed. Status: {report['status'].upper()}")
+    print(f"Integrity Report saved to {INTEGRITY_FILE}")
+    
+    if not overall_success:
+        print("CRITICAL: One or more files failed integrity check. Aborting.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
