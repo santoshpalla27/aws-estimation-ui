@@ -37,7 +37,7 @@ def download():
         # Note: In a real system, we might save as ec2_us-east-1.json or merge.
         # For this requirement, "Output to /data/raw/{service}.json"
         
-        output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'raw')
+        output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'data', 'raw')
         output_file = os.path.join(output_dir, 'ec2.json')
         os.makedirs(output_dir, exist_ok=True)
         

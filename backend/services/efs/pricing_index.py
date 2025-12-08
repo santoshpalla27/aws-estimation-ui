@@ -10,7 +10,7 @@ class PricingIndex:
         self._load_data()
         
     def _load_data(self):
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         normalized_file = os.path.join(base_dir, 'data', 'normalized', 'efs.json')
         if os.path.exists(normalized_file):
             try:

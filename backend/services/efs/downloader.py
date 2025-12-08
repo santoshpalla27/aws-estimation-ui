@@ -22,7 +22,7 @@ def download():
 
         price_url = f"https://pricing.us-east-1.amazonaws.com{region_url_suffix}"
         
-        output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data', 'raw')
+        output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'data', 'raw')
         output_file = os.path.join(output_dir, 'efs.json')
         os.makedirs(output_dir, exist_ok=True)
         

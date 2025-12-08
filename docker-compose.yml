@@ -36,4 +36,4 @@ services:
              python backend/normalizer/main.py && 
              python backend/metadata/main.py"
     profiles:
-      - tools # Only run when explicitly requested: docker-compose --profile tools up
+      - tools # Only run when explicitly requested: docker compose --profile tools up
