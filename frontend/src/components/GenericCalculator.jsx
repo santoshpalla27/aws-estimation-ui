@@ -16,7 +16,8 @@ const GenericCalculator = ({ serviceId, onAddEstimate }) => {
         setPricingOptions([]);
         setSelectedPrice(null);
 
-        fetch(`http://localhost:8000/api/services/${serviceId}/metadata`)
+        // Use relative path for Nginx proxy
+        fetch(`/api/services/${serviceId}/metadata`)
             .then(res => res.json())
             .then(data => {
                 setMetadata(data);
@@ -33,7 +34,7 @@ const GenericCalculator = ({ serviceId, onAddEstimate }) => {
         });
 
         setLoading(true);
-        fetch(`http://localhost:8000/api/pricing/${serviceId}?${params.toString()}`)
+        fetch(`/api/pricing/${serviceId}?${params.toString()}`)
             .then(res => res.json())
             .then(data => {
                 setPricingOptions(data);

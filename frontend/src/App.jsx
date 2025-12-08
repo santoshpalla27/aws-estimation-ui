@@ -11,7 +11,8 @@ function App() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://localhost:8000/api/services')
+        // Use relative path so Nginx proxies it to backend
+        fetch('/api/services')
             .then(res => res.json())
             .then(data => {
                 setServices(data);
