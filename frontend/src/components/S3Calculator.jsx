@@ -13,7 +13,7 @@ const S3Calculator = ({ onAddEstimate }) => {
 
     const calculate = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/estimate/s3', {
+            const res = await fetch('/api/estimate/s3', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

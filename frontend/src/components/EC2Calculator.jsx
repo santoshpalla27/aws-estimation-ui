@@ -17,7 +17,7 @@ const EC2Calculator = ({ onAddEstimate }) => {
 
     const calculate = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/estimate/ec2', {
+            const res = await fetch('/api/estimate/ec2', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

@@ -6,7 +6,8 @@ from typing import List, Optional, Dict, Any
 router = APIRouter()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-NORM_DIR = os.path.join(BASE_DIR, "data", "normalized")
+# Ensure we look in the Docker mounted path
+NORM_DIR = "/app/data/normalized"
 
 # Simple in-memory cache
 PRICING_CACHE = {}
