@@ -1,8 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import Dashboard from './components/Dashboard';
-import EC2Calculator from './components/EC2Calculator';
-import S3Calculator from './components/S3Calculator';
-import GenericCalculator from './components/GenericCalculator';
+import ArchitectureBuilder from './components/ArchitectureBuilder';
 
 function App() {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -36,6 +32,9 @@ function App() {
         if (activeTab === 'dashboard') {
             return <Dashboard totalCost={totalCost} items={estimates} />;
         }
+        if (activeTab === 'builder') {
+            return <ArchitectureBuilder />;
+        }
         if (activeTab === 'EC2' || activeTab === 'AmazonEC2') {
             return <div className="p-6"><EC2Calculator onAddEstimate={addEstimate} /></div>;
         }
@@ -68,8 +67,14 @@ function App() {
                     >
                         <span className="text-gray-700 dark:text-gray-200 font-bold">Dashboard</span>
                     </button>
+                    <button
+                        onClick={() => setActiveTab('builder')}
+                        className={`w-full text-left px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 ${activeTab === 'builder' ? 'bg-blue-50 dark:bg-gray-700 border-r-4 border-blue-500' : ''}`}
+                    >
+                        <span className="text-gray-700 dark:text-gray-200 font-bold">Architecture Builder</span>
+                    </button>
 
-                    <div className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase">Services</div>
+                    <div className="px-6 py-2 text-xs font-semibold text-gray-500 uppercase mt-4">Services</div>
 
                     {loading ? (
                         <div className="px-6 py-2 text-gray-400">Loading...</div>
