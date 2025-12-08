@@ -2,6 +2,7 @@ import ijson
 import json
 import sqlite3
 import os
+import sys
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

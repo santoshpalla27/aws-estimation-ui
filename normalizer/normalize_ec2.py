@@ -49,9 +49,6 @@ def parse_products(cursor, file_path):
         batch = []
         for sku, product in products:
             attr = product.get('attributes', {})
-            if attr.get('servicecode') != 'AmazonEC2': 
-                continue # Generic filter
-            
             # We strictly want Compute Instances usually, or Dedicated Host.
             # "productFamily" == "Compute Instance"
             if attr.get('productFamily') != 'Compute Instance':
