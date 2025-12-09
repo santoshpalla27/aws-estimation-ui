@@ -19,11 +19,17 @@ class BasePricingIndex:
     def _get_db_path(self):
         try:
             from backend.app.core.paths import PRICING_DB
-            return str(PRICING_DB)
+            path = str(PRICING_DB)
+            # logger.info(f"Using paths.py DB path: {path}") 
+            return path
         except ImportError:
             # Fallback for standardized structure
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-            return os.path.join(base_dir, 'data', 'pricing.db')
+            # File: backend/app/core/pricing_index_base.py
+            # 1: core, 2: app, 3: backend, 4: root
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            db_path = os.path.join(base_dir, 'data', 'pricing.db')
+            logger.warning(f"Could not import paths.py. Using fallback DB path: {db_path}")
+            return db_path
 
     def get_available_values(self, field: str) -> list:
         """
