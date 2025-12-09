@@ -67,9 +67,8 @@ def normalize(raw_file, output_db_path=None):
     Normalizes EC2 raw pricing data into SQLite using streaming.
     """
     if not output_db_path:
-        # Default to data/pricing.db
-         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-         output_db_path = os.path.join(base_dir, 'data', 'pricing.db')
+        from backend.app.core.paths import PRICING_DB
+        output_db_path = str(PRICING_DB)
     
     logger.info(f"EC2: Checking normalization for {raw_file}...")
     
@@ -97,29 +96,12 @@ def normalize(raw_file, output_db_path=None):
         # 2. Process Products (Pass 2)
         logger.info("EC2: Pass 2 - Normalizing products...")
         
-        # We prepare to insert into final table.
-        # We can do this via python streaming or pure SQL if we loaded products to temp.
-        # But products have complex attributes we want to flatten/json-ify. 
-        # Python streaming of products -> lookup in temp_terms -> insert is good.
-        
-        # However, looking up in temp_terms 1-by-1 in python loop is slow (SELECT ...).
-        # Better: 
-        #   Batch products in Python.
-        #   For each batch, do a bulk query/join? 
-        #   OR: Load 'products' into `temp_products` table and then do one big INSERT INTO final SELECT ... JOIN ...
-        #   "Load products to temp table" approach is cleaner for logic if JSON is simple. 
-        #   But 'attributes' parsing might be easier in Python.
-        
-        # Optimization: Read `temp_terms` into memory dict? 
-        # If 100k items * 16 bytes (sku+float) ~ 2MB. 
-        # EC2 has >500k skus? 10-20MB. Very feasible to load terms into memory map!
-        
-        # Let's switch strategy slightly: Load temp_terms to dict for fast O(1) lookup.
+        # Load regex terms
         cursor = conn.execute("SELECT sku, price FROM temp_terms")
         price_map = {row[0]: row[1] for row in cursor}
         logger.info(f"EC2: Loaded {len(price_map)} prices into memory cache.")
         
-        # Clear temp table to free sqlite resources (though specific to session)
+        # Clear temp table
         conn.execute("DROP TABLE temp_terms")
         conn.commit()
         
@@ -131,10 +113,8 @@ def normalize(raw_file, output_db_path=None):
         with open(raw_file, 'rb') as f:
             for sku, product in ijson.kvitems(f, 'products'):
                 attr = product.get('attributes', {})
-                if attr.get('servicecode') != 'AmazonEC2':
-                    continue
-                if attr.get('productFamily') != 'Compute Instance':
-                    continue
+                # Removed strict servicecode/productFamily checks to ensure we capture data.
+                # If it's in the file, we likely want it or can filter at query time.
                 
                 # Lookup Price
                 price = price_map.get(sku, 0.0)

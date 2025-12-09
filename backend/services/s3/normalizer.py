@@ -47,8 +47,8 @@ def populate_temp_terms(conn: sqlite3.Connection, raw_file_path: str):
 
 def normalize(raw_file, output_db_path=None):
     if not output_db_path:
-         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-         output_db_path = os.path.join(base_dir, 'data', 'pricing.db')
+        from backend.app.core.paths import PRICING_DB
+        output_db_path = str(PRICING_DB)
     
     logger.info(f"S3: Checking normalization for {raw_file}...")
     
@@ -58,9 +58,10 @@ def normalize(raw_file, output_db_path=None):
         return
 
     raw_mtime = raw_path.stat().st_mtime
+    
     conn = get_db_connection(output_db_path)
     create_pricing_table(conn, 's3')
-    create_index(conn, 's3', ['productFamily', 'storageClass', 'volumeType'])
+    create_index(conn, 's3', ['storageClass', 'volumeType', 'location', 'usagetype'])
     
     if should_skip_normalization(conn, 's3', raw_mtime):
         logger.info("S3: Data is up-to-date. Skipping normalization.")
@@ -68,11 +69,15 @@ def normalize(raw_file, output_db_path=None):
         return
 
     try:
+        # 1. Populate Terms
         populate_temp_terms(conn, raw_file)
         
+        # 2. Process Products
         logger.info("S3: Pass 2 - Normalizing products...")
+        
         cursor = conn.execute("SELECT sku, price FROM temp_terms")
         price_map = {row[0]: row[1] for row in cursor}
+        
         conn.execute("DROP TABLE temp_terms")
         conn.commit()
         
@@ -84,8 +89,9 @@ def normalize(raw_file, output_db_path=None):
         with open(raw_file, 'rb') as f:
             for sku, product in ijson.kvitems(f, 'products'):
                 attr = product.get('attributes', {})
-                if attr.get('servicecode') != 'AmazonS3':
-                    continue
+                # Relaxed checks
+                # if attr.get('servicecode') != 'AmazonS3':
+                #     continue
                 
                 price = price_map.get(sku, 0.0)
                 
