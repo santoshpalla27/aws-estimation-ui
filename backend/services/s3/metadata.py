@@ -1,4 +1,7 @@
-from services.s3.pricing_index import PricingIndex
+try:
+    from services.s3.pricing_index import PricingIndex
+except ImportError:
+    from backend.services.s3.pricing_index import PricingIndex
 
 def extract_metadata(normalized_data=None):
     """

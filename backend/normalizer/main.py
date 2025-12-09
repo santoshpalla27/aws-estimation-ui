@@ -60,7 +60,7 @@ def run_service_normalizer(service_info):
             
             # --- Populate SQLite ---
             try:
-                from backend.app.core.database import PricingDB
+                from backend.app.core.pricing_db import PricingDB
                 from backend.app.core.paths import PRICING_DB
                 
                 db = PricingDB(PRICING_DB)

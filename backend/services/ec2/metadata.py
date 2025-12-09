@@ -1,4 +1,7 @@
-from services.ec2.pricing_index import PricingIndex
+try:
+    from services.ec2.pricing_index import PricingIndex
+except ImportError:
+    from backend.services.ec2.pricing_index import PricingIndex
 
 def extract_metadata(normalized_data=None):
     """

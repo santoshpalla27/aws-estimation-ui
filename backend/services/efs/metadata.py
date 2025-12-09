@@ -1,4 +1,7 @@
-from services.efs.pricing_index import PricingIndex
+try:
+    from services.efs.pricing_index import PricingIndex
+except ImportError:
+    from backend.services.efs.pricing_index import PricingIndex
 
 def extract_metadata(normalized_data=None):
     """

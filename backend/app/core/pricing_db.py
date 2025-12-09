@@ -2,8 +2,23 @@ import sqlite3
 import logging
 import json
 from datetime import datetime
+from backend.app.core.database import get_db_connection
 
 logger = logging.getLogger(__name__)
+
+class PricingDB:
+    def __init__(self, db_path):
+        self.conn = get_db_connection(db_path)
+
+    def initialize_service_table(self, service_name: str, indexed_fields: list):
+        create_pricing_table(self.conn, service_name)
+        create_index(self.conn, service_name, indexed_fields)
+
+    def insert_records(self, service_name: str, items: list, indexed_fields: list = None):
+        insert_pricing_batch(self.conn, service_name, items)
+
+    def close(self):
+        self.conn.close()
 
 def create_pricing_table(conn: sqlite3.Connection, service_name: str):
     """Creates the pricing table for a specific service."""
@@ -70,12 +85,6 @@ def insert_pricing_batch(conn: sqlite3.Connection, service_name: str, items: lis
         location = item.get('location')
         
         # Everything else goes into attributes JSON
-        # We can reconstruct this if needed, but keeping it simple
-        # Assuming input 'attributes' is strictly the extra stuff, 
-        # or we filter known keys.
-        # For simplicity, let's dump the whole 'attributes' dict from item into the column,
-        # but in our normalizers we'll construct 'attributes' to contain everything ELSE.
-        
         attributes_json = json.dumps(item.get('attributes', {}))
         
         data.append((sku, price, location, attributes_json))
@@ -101,18 +110,8 @@ def create_index(conn: sqlite3.Connection, service_name: str, fields: list):
     
     for field in fields:
         if '.' in field and not field.startswith('json_extract'):
-            # Assumption: dot notation means JSON attribute inside 'attributes' column
-            # e.g. 'instanceType' inside 'attributes' -> json_extract(attributes, '$.instanceType')
-            # But wait, our usage in plan said: "EC2: instanceType"
-            # And column is 'attributes'.
-            # So if field is 'instanceType', we check if it is a main column or in attributes.
-            # Main columns: sku, price, location.
             pass
             
-        # Simplified logic:
-        # If field is 'location', 'sku', 'price', create standard index.
-        # If field is anything else, assume it's in the 'attributes' JSON column.
-        
         index_name = f"idx_{service_name}_{field.replace('.', '_')}"
         
         if field in ['sku', 'price', 'location']:
@@ -120,8 +119,6 @@ def create_index(conn: sqlite3.Connection, service_name: str, fields: list):
             sql = f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name}({field})"
         else:
             # JSON index
-            # SQLite requirement: expression index
-            # "CREATE INDEX idx ON table(json_extract(attributes, '$.field'))"
             sql = f"CREATE INDEX IF NOT EXISTS {index_name} ON {table_name}(json_extract(attributes, '$.{field}'))"
             
         try:
