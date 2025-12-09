@@ -9,15 +9,19 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# normalizer/main.py is in backend/normalizer/
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.dirname(CURRENT_DIR)
-ROOT_DIR = os.path.dirname(BACKEND_DIR)
+try:
+    from backend.app.core.paths import SERVICES_REGISTRY_FILE, SERVICES_DIR, RAW_DIR, NORMALIZED_DIR
+except ImportError:
+    # Fallback
+    import sys
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+    from backend.app.core.paths import SERVICES_REGISTRY_FILE, SERVICES_DIR, RAW_DIR, NORMALIZED_DIR
 
-REGISTRY_PATH = os.path.join(BACKEND_DIR, 'services_registry.json')
-SERVICES_DIR = os.path.join(BACKEND_DIR, 'services')
-DATA_RAW_DIR = os.path.join(ROOT_DIR, 'data', 'raw')
-DATA_NORMALIZED_DIR = os.path.join(ROOT_DIR, 'data', 'normalized')
+REGISTRY_PATH = str(SERVICES_REGISTRY_FILE)
+SERVICES_DIR_PATH = str(SERVICES_DIR)
+
+DATA_RAW_DIR = str(RAW_DIR)
+DATA_NORMALIZED_DIR = str(NORMALIZED_DIR)
 
 def load_registry():
     with open(REGISTRY_PATH, 'r') as f:
@@ -39,7 +43,7 @@ def run_service_normalizer(service_info):
     logger.info(f"Starting normalizer for {service_id}")
     
     # Dynamic import
-    service_path = os.path.join(SERVICES_DIR, service_id, 'normalizer.py')
+    service_path = os.path.join(SERVICES_DIR_PATH, service_id, 'normalizer.py')
     if not os.path.exists(service_path):
         logger.error(f"Normalizer module not found for {service_id} at {service_path}")
         return
@@ -53,6 +57,32 @@ def run_service_normalizer(service_info):
         if hasattr(module, 'normalize'):
             module.normalize(raw_file, output_file)
             logger.info(f"Successfully normalized {service_id}")
+            
+            # --- Populate SQLite ---
+            try:
+                from backend.app.core.database import PricingDB
+                from backend.app.core.paths import PRICING_DB
+                
+                db = PricingDB(PRICING_DB)
+                indexed_fields = service_info.get('indexedFields', [])
+                
+                if indexed_fields:
+                    logger.info(f"Populating DB for {service_id}")
+                    db.initialize_service_table(service_id, indexed_fields)
+                    
+                    # Read back valid JSON and insert
+                    with open(output_file, 'r') as f:
+                        data = json.load(f)
+                        # data is list of dicts or dict with 'products'
+                        items = data if isinstance(data, list) else data.get('products', [])
+                        
+                    db.insert_records(service_id, items, indexed_fields)
+                    db.close()
+                    logger.info(f"DB population complete for {service_id}")
+            except Exception as e:
+                logger.error(f"Failed to populate DB for {service_id}: {e}")
+            # -----------------------
+            
         else:
             logger.error(f"Module {service_id} does not have a normalize(raw_file, output_file) function")
             

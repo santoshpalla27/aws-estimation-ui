@@ -6,6 +6,7 @@ def estimate(payload, pricing_index=None):
     location = payload.get('location')
     
     unit_price = 0.30 # Fallback
+    tiers = []
     
     if pricing_index:
         result = pricing_index.find_price({
@@ -13,15 +14,26 @@ def estimate(payload, pricing_index=None):
             "location": location
         })
         if result:
-            unit_price = result.get('price', 0.30)
+            if 'tiers' in result:
+                tiers = result['tiers']
+            else:
+                unit_price = result.get('price', 0.30)
+                tiers = [{"limit": None, "price": unit_price}]
+        else:
+            tiers = [{"limit": None, "price": unit_price}]
+    else:
+        tiers = [{"limit": None, "price": unit_price}]
             
-    total_cost = Decimal(unit_price) * Decimal(storage_gb)
+    # Calculate using helper
+    from backend.app.core.pricing_utils import calculate_tiered_cost
+    total_cost = calculate_tiered_cost(storage_gb, tiers)
     
     return {
         "service": "efs",
         "total_cost": float(total_cost),
         "breakdown": {
             "storage_cost": float(total_cost),
-            "unit_price": unit_price
+            "unit_price": unit_price,
+            "tiers_used": tiers
         }
     }

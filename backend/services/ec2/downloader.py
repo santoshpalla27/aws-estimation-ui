@@ -1,14 +1,24 @@
 import requests
 import json
 import os
+import sys
 import logging
+from pathlib import Path
+
+# Try to import robust_downloader, adding project root to path if needed
+try:
+    from backend.app.core.robust_downloader import download_file
+except ImportError:
+    # Add project root (4 levels up from services/ec2/downloader.py)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    if project_root not in sys.path:
+        sys.path.append(project_root)
+    from backend.app.core.robust_downloader import download_file
 
 logger = logging.getLogger(__name__)
 
 # Constants
-# For demo purposes, we fetch a specific region to avoid massive downloads
 REGION = 'us-east-1'
-# This is the Offer Index URL
 OFFER_INDEX_URL = 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/region_index.json'
 
 def download():
@@ -32,24 +42,21 @@ def download():
 
         price_url = f"https://pricing.us-east-1.amazonaws.com{region_url_suffix}"
         
-        # 3. Stream download the pricing file
-        # Output path: data/raw/ec2.json
-        # Note: In a real system, we might save as ec2_us-east-1.json or merge.
-        # For this requirement, "Output to /data/raw/{service}.json"
-        
-        output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'data', 'raw')
-        output_file = os.path.join(output_dir, 'ec2.json')
-        os.makedirs(output_dir, exist_ok=True)
+        # 3. Download using robust downloader
+        if 'backend.app.core.paths' in sys.modules:
+            from backend.app.core.paths import RAW_DIR
+            output_dir = str(RAW_DIR)
+        else:
+            output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'data', 'raw')
+
+        output_file = Path(output_dir) / 'ec2.json'
         
         logger.info(f"EC2: Downloading pricing from {price_url} to {output_file}")
         
-        with requests.get(price_url, stream=True) as r:
-            r.raise_for_status()
-            with open(output_file, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192): 
-                    f.write(chunk)
-                    
-        logger.info("EC2: Download complete.")
+        if download_file(price_url, output_file):
+            logger.info("EC2: Download complete.")
+        else:
+            logger.error("EC2: Download failed.")
         
     except Exception as e:
         logger.error(f"EC2: Download failed: {e}")

@@ -14,9 +14,13 @@ from typing import List, Dict, Optional
 # backend/app (dirname)
 # backend (dirname) -> This is where services is now.
 
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-REGISTRY_PATH = os.path.join(BACKEND_DIR, 'services_registry.json')
-SERVICES_DIR = os.path.join(BACKEND_DIR, 'services')
+from backend.app.core.paths import SERVICES_REGISTRY_FILE, SERVICES_DIR
+
+REGISTRY_PATH = str(SERVICES_REGISTRY_FILE)
+SERVICES_DIR_PATH = str(SERVICES_DIR)
+
+# Note: The original code used SERVICES_DIR global. I'll map it.
+SERVICES_DIR = SERVICES_DIR_PATH
 
 class ServiceRegistry:
     _instance = None

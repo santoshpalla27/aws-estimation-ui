@@ -8,16 +8,18 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# metadata/main.py is in backend/metadata/
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BACKEND_DIR = os.path.dirname(CURRENT_DIR)
-ROOT_DIR = os.path.dirname(BACKEND_DIR)
+try:
+    from backend.app.core.paths import SERVICES_REGISTRY_FILE, SERVICES_DIR, NORMALIZED_DIR, METADATA_FILE
+except ImportError:
+    # Fallback
+    import sys
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+    from backend.app.core.paths import SERVICES_REGISTRY_FILE, SERVICES_DIR, NORMALIZED_DIR, METADATA_FILE
 
-REGISTRY_PATH = os.path.join(BACKEND_DIR, 'services_registry.json')
-SERVICES_DIR = os.path.join(BACKEND_DIR, 'services')
-DATA_NORMALIZED_DIR = os.path.join(ROOT_DIR, 'data', 'normalized')
-# Metadata output goes to backend/service_metadata.json (used by API)
-METADATA_OUTPUT = os.path.join(BACKEND_DIR, 'service_metadata.json')
+REGISTRY_PATH = str(SERVICES_REGISTRY_FILE)
+SERVICES_DIR_PATH = str(SERVICES_DIR)
+DATA_NORMALIZED_DIR = str(NORMALIZED_DIR)
+METADATA_OUTPUT = str(METADATA_FILE)
 
 def load_registry():
     with open(REGISTRY_PATH, 'r') as f:
@@ -28,33 +30,8 @@ def run_service_metadata_extractor(service_info):
     if not service_info.get('hasMetadata'):
         return None
 
-    normalized_file = os.path.join(DATA_NORMALIZED_DIR, f"{service_id}.json")
-    
-    if not os.path.exists(normalized_file):
-        logger.warning(f"Normalized data for {service_id} not found. skipping metadata.")
-        return None
-
-    # Load normalized data
-    # Note: In production with huge files, we might pass the path, 
-    # but the requirement says 'extract_metadata(normalized_data)' implies data object or maybe path.
-    # Given 'Large pricing file handling via streaming' constraint, passing path is safer, 
-    # but let's stick to the interface or pass the data if it's not huge, or load it inside.
-    # The requirement says "extract_metadata(normalized_data)". 
-    # For now, let's load it, but be mindful. 
-    # Actually, for 'streaming', passing the path to the service and letting it stream read is better.
-    # I will pass the LOADED dict for now as per "normalized_data" implication, 
-    # but strictly I should probably pass the path for performance.
-    # Let's try to pass the data object, assuming it fits in memory for this stage, or the service handles it.
-    
-    try:
-        with open(normalized_file, 'r') as f:
-            data = json.load(f)
-    except Exception as e:
-        logger.error(f"Error reading {normalized_file}: {e}")
-        return None
-
     # Dynamic import
-    service_path = os.path.join(SERVICES_DIR, service_id, 'metadata.py')
+    service_path = os.path.join(SERVICES_DIR_PATH, service_id, 'metadata.py')
     if not os.path.exists(service_path):
         logger.error(f"Metadata module not found for {service_id}")
         return None
@@ -66,7 +43,9 @@ def run_service_metadata_extractor(service_info):
         spec.loader.exec_module(module)
         
         if hasattr(module, 'extract_metadata'):
-            return {service_id: module.extract_metadata(data)}
+            # Optimization: We no longer pass the huge normalized_data blob.
+            # The service metadata module is responsible for fetching what it needs (e.g. from DB).
+            return {service_id: module.extract_metadata()}
         else:
             logger.error(f"Module {service_id} does not have extract_metadata()")
             return None

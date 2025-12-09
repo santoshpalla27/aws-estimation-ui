@@ -1,7 +1,19 @@
 import requests
 import json
 import os
+import sys
 import logging
+from pathlib import Path
+
+# Try to import robust_downloader, adding project root to path if needed
+try:
+    from backend.app.core.robust_downloader import download_file
+except ImportError:
+    # Add project root (4 levels up from services/rds/downloader.py)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    if project_root not in sys.path:
+        sys.path.append(project_root)
+    from backend.app.core.robust_downloader import download_file
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +34,20 @@ def download():
 
         price_url = f"https://pricing.us-east-1.amazonaws.com{region_url_suffix}"
         
-        output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'data', 'raw')
-        output_file = os.path.join(output_dir, 'rds.json')
-        os.makedirs(output_dir, exist_ok=True)
+        if 'backend.app.core.paths' in sys.modules:
+            from backend.app.core.paths import RAW_DIR
+            output_dir = str(RAW_DIR)
+        else:
+            output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'data', 'raw')
+            
+        output_file = Path(output_dir) / 'rds.json'
         
         logger.info(f"RDS: Downloading pricing from {price_url} to {output_file}")
         
-        with requests.get(price_url, stream=True) as r:
-            r.raise_for_status()
-            with open(output_file, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192): 
-                    f.write(chunk)
-                    
-        logger.info("RDS: Download complete.")
+        if download_file(price_url, output_file):
+            logger.info("RDS: Download complete.")
+        else:
+            logger.error("RDS: Download failed.")
+            
     except Exception as e:
         logger.error(f"RDS: Download failed: {e}")

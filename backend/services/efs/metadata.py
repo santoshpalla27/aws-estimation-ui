@@ -1,15 +1,12 @@
-def extract_metadata(normalized_data):
-    products = normalized_data.get('products', [])
-    storage_classes = set()
-    locations = set()
+from services.efs.pricing_index import PricingIndex
+
+def extract_metadata(normalized_data=None):
+    """
+    Extracts EFS metadata.
+    """
+    index = PricingIndex()
     
-    for p in products:
-        if p.get('storageClass'):
-            storage_classes.add(p['storageClass'])
-        if p.get('location'):
-            locations.add(p['location'])
-            
     return {
-        "storageClasses": sorted(list(storage_classes)),
-        "locations": sorted(list(locations))
+        "storageClasses": index.get_available_values("storageClass"),
+        "locations": index.get_available_values("location")
     }
