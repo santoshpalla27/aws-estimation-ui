@@ -20,7 +20,7 @@ class BasePricingIndex:
         try:
             from backend.app.core.paths import PRICING_DB
             path = str(PRICING_DB)
-            # logger.info(f"Using paths.py DB path: {path}") 
+            print(f"DEBUG: PricingIndex using paths.py DB path: {path}", file=sys.stderr)
             return path
         except ImportError:
             # Fallback for standardized structure
@@ -28,7 +28,7 @@ class BasePricingIndex:
             # 1: core, 2: app, 3: backend, 4: root
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
             db_path = os.path.join(base_dir, 'data', 'pricing.db')
-            logger.warning(f"Could not import paths.py. Using fallback DB path: {db_path}")
+            print(f"DEBUG: PricingIndex using fallback DB path: {db_path}", file=sys.stderr)
             return db_path
 
     def get_available_values(self, field: str) -> list:
