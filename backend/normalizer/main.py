@@ -55,7 +55,11 @@ def run_service_normalizer(service_info):
         spec.loader.exec_module(module)
         
         if hasattr(module, 'normalize'):
-            module.normalize(raw_file, output_file)
+            from backend.app.core.paths import PRICING_DB
+            
+            # The normalizers (ec2, s3, etc.) expect an output DB path as the second argument,
+            # NOT a JSON file path. They write their own summaries.
+            module.normalize(raw_file, str(PRICING_DB))
             logger.info(f"Successfully normalized {service_id}")
             
             # --- Populate SQLite ---
