@@ -15,7 +15,7 @@ export default function EC2Calculator({ serviceId }) {
     })
 
     useEffect(() => {
-        fetch(`/api/services/${serviceId}/metadata`)
+        fetch(`/api/pricing/metadata/${serviceId}`)
             .then(res => res.json())
             .then(data => {
                 setMetadata(data)

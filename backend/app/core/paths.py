@@ -25,7 +25,7 @@ RAW_DIR = DATA_DIR / "raw"
 NORMALIZED_DIR = DATA_DIR / "normalized"
 
 # Files
-METADATA_FILE = BACKEND_DIR / "service_metadata.json"
+METADATA_FILE = DATA_DIR / "service_metadata.json"
 SERVICES_REGISTRY_FILE = BACKEND_DIR / "services_registry.json"
 
 # Example for future pricing DB
