@@ -79,6 +79,11 @@ body {
     box-sizing: border-box;
 }
 
+.input.small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
 .label {
     display: block;
     margin-bottom: 0.5rem;

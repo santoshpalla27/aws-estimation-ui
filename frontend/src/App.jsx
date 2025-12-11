@@ -64,17 +64,31 @@ function App() {
                     <PenTool size={16} style={{ marginRight: '0.5rem' }} /> Builder
                 </div>
 
-                <div style={{ marginTop: '1rem', marginBottom: '0.5rem', fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 'bold' }}>
-                    Services
-                </div>
-
-                {services.map(service => (
-                    <div
-                        key={service.serviceId}
-                        className={`service-item ${activeService === service.serviceId ? 'active' : ''}`}
-                        onClick={() => setActiveService(service.serviceId)}
-                    >
-                        {service.label}
+                {Object.entries(services.reduce((acc, service) => {
+                    const cat = service.category || 'Other'
+                    if (!acc[cat]) acc[cat] = []
+                    acc[cat].push(service)
+                    return acc
+                }, {})).map(([category, items]) => (
+                    <div key={category} style={{ marginBottom: '1rem' }}>
+                        <div style={{
+                            fontSize: '0.75rem',
+                            textTransform: 'uppercase',
+                            color: '#64748b',
+                            fontWeight: 'bold',
+                            padding: '0.5rem 0.5rem 0.25rem'
+                        }}>
+                            {category}
+                        </div>
+                        {items.map(service => (
+                            <div
+                                key={service.serviceId}
+                                className={`service-item ${activeService === service.serviceId ? 'active' : ''}`}
+                                onClick={() => setActiveService(service.serviceId)}
+                            >
+                                {service.label}
+                            </div>
+                        ))}
                     </div>
                 ))}
             </aside>

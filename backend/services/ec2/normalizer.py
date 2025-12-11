@@ -134,6 +134,9 @@ def normalize(raw_file, output_db_path=None):
                         "clockSpeed": attr.get('clockSpeed'),
                         "storage": attr.get('storage'),
                         "gpu": attr.get('gpu'), # sometimes present
+                        "productFamily": product.get('productFamily'), # Critical for differentiating Compute vs Storage
+                        "volumeType": attr.get('volumeType'), # gp3, io2, etc
+                        "usagetype": attr.get('usagetype'), # e.g. EBS:VolumeUsage.gp3
                     }
                 }
                 

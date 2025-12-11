@@ -12,6 +12,8 @@ def extract_metadata(normalized_data=None):
     
     return {
         "instanceTypes": index.get_available_values("instanceType"),
+        "instanceTypeDetails": index.get_instance_type_details(),
+        "storagePrices": index.get_all_storage_prices(),
         "locations": index.get_available_values("location"),
         "operatingSystems": index.get_available_values("operatingSystem")
     }

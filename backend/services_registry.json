@@ -2,6 +2,7 @@
     {
         "serviceId": "ec2",
         "label": "Amazon EC2",
+        "category": "Compute",
         "hasDownloader": true,
         "hasNormalizer": true,
         "hasEstimator": true,
@@ -11,6 +12,7 @@
     {
         "serviceId": "s3",
         "label": "Amazon S3",
+        "category": "Storage",
         "hasDownloader": true,
         "hasNormalizer": true,
         "hasEstimator": true,
@@ -20,6 +22,7 @@
     {
         "serviceId": "rds",
         "label": "Amazon RDS",
+        "category": "Database",
         "hasDownloader": true,
         "hasNormalizer": true,
         "hasEstimator": true,
@@ -29,6 +32,7 @@
     {
         "serviceId": "efs",
         "label": "Amazon EFS",
+        "category": "Storage",
         "hasDownloader": true,
         "hasNormalizer": true,
         "hasEstimator": true,
