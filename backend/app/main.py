@@ -78,23 +78,7 @@ app.include_router(export.router, prefix="/api/export", tags=["Export"])
 async def list_services():
     return registry.registry.get_all_services()
 
-@app.get("/api/services/{service_id}/metadata")
-async def get_service_metadata(service_id: str):
-    # This should return the metadata from service_metadata.json filtered by service
-    # Or prompt the service metadata module?
-    # "GET /api/services/{service}/metadata"
-    # "Metadata engine ... Save to service_metadata.json"
-    
-    # Let's read service_metadata.json
-    from backend.app.core.paths import METADATA_FILE
-    
-    if not METADATA_FILE.exists():
-        return {}
-        
-    with open(meta_path, 'r') as f:
-        data = json.load(f)
-        
-    return data.get(service_id, {})
+
 
 @app.get("/")
 async def root():

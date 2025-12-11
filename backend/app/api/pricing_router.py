@@ -1,48 +1,132 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Request
 from .registry import registry
+from backend.app.core.paths import METADATA_FILE
 import os
 import json
 import logging
+import importlib.util
+import sys
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# backend/app/api/pricing_router.py
-# We want BACKEND_DIR
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Cache for loaded classes
+_pricing_indices = {}
 
-@router.get("/{service_id}")
-async def get_pricing(service_id: str):
+def get_pricing_index(service_id: str):
+    """
+    Dynamically loads the PricingIndex class for a service.
+    """
+    if service_id in _pricing_indices:
+        return _pricing_indices[service_id]
+        
+    service_path = registry.get_service_path(service_id)
+    module_path = os.path.join(service_path, 'pricing_index.py')
+    
+    if not os.path.exists(module_path):
+        # Fallback: Use BasePricingIndex if module doesn't exist? 
+        # But we need allowed_filters. 
+        # For now, require the module.
+        logger.warning(f"No pricing_index.py found for {service_id}")
+        return None
+        
+    try:
+        spec = importlib.util.spec_from_file_location(f"services.{service_id}.pricing_index", module_path)
+        module = importlib.util.module_from_spec(spec)
+        # sys.modules needed for some relative imports if they exist
+        sys.modules[f"services.{service_id}.pricing_index"] = module 
+        spec.loader.exec_module(module)
+        
+        if hasattr(module, 'PricingIndex'):
+            idx_class = module.PricingIndex
+            instance = idx_class() # Initialize
+            _pricing_indices[service_id] = instance
+            return instance
+        else:
+            logger.error(f"Module {service_id} does not have PricingIndex class")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Failed to load PricingIndex for {service_id}: {e}")
+        return None
+
+@router.get("/catalog/{service_id}")
+async def get_catalog(
+    service_id: str, 
+    request: Request,
+    page: int = Query(1, ge=1), 
+    pageSize: int = Query(50, ge=1, le=100),
+    sortBy: str = Query(None)
+):
+    """
+    Returns paginated pricing data from the database.
+    Query parameters are treated as filters (e.g. ?location=US East&instanceType=t3.micro).
+    """
+    service_info = registry.get_service(service_id)
+    if not service_info:
+        raise HTTPException(status_code=404, detail=f"Service {service_id} not found")
+
+    index = get_pricing_index(service_id)
+    if not index:
+        raise HTTPException(status_code=500, detail=f"Pricing index not available for {service_id}")
+        
+    # Extract filters from query params
+    filters = dict(request.query_params)
+    # Remove pagination/sort params from filters
+    filters.pop('page', None)
+    filters.pop('pageSize', None)
+    filters.pop('sortBy', None)
+    
+    # Run query
+    items, total = index.query(filters, page=page, per_page=pageSize, sort_by=sortBy)
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "pageSize": pageSize
+    }
+
+@router.get("/metadata/{service_id}")
+async def get_metadata(service_id: str):
+    """
+    Returns metadata for dropdowns (locations, instanceTypes, etc.).
+    Uses the pre-computed service_metadata.json for speed.
+    """
+    if not os.path.exists(METADATA_FILE):
+         raise HTTPException(status_code=404, detail="Metadata not yet generated. Please wait for pipeline.")
+         
+    try:
+        with open(METADATA_FILE, 'r') as f:
+            data = json.load(f)
+            
+        service_meta = data.get(service_id)
+        if not service_meta:
+            # Try to fetch global metadata or return empty?
+            # If service exists but no metadata, maybe it failed.
+            return {}
+            
+        return service_meta
+        
+    except Exception as e:
+        logger.error(f"Failed to read metadata: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error reading metadata")
+
+@router.get("/{service_id}/raw")
+async def get_raw_pricing(service_id: str):
+    """
+    Legacy endpoint for downloading the full raw JSON.
+    """
+    # ... existing logic ...
     service_info = registry.get_service(service_id)
     if not service_info:
         raise HTTPException(status_code=404, detail=f"Service {service_id} not found")
         
-    # Serve normalized data? Or raw? Or indexed?
-    # Requirement: "GET /api/pricing/{service}"
-    # Usually this would return the normalized pricing or a subset.
-    # Let's return the normalized JSON if it exists.
-    # Data is usually at root/data, but let's see. 
-    # If we moved everything to backend, maybe data should vary?
-    # The prompt said "Move services normalizer metada may go under backend folder".
-    # It didn't say "data". But downloader output is usually relative.
-    # Let's check where downloader puts it. 
-    # Dockerfile creates /app/data.
-    # docker-compose maps ./data:/app/data.
-    # So inside container, /app/data is root/data.
-    # If app is running from /app/backend/app/main.py...
-    # let's try to keep data at root for persistence outside of backend code.
-    # But wait, if BACKEND_DIR is /app/backend.
-    # Then root is dirname(BACKEND_DIR).
-    
-    ROOT_DIR = os.path.dirname(BACKEND_DIR)
-    normalized_path = os.path.join(ROOT_DIR, 'data', 'normalized', f"{service_id}.json")
-    if not os.path.exists(normalized_path):
-        # Fallback check if data is in backend/data (unlikely but possible if moved)
-        normalized_path = os.path.join(BACKEND_DIR, 'data', 'normalized', f"{service_id}.json")
+    from backend.app.core.paths import NORMALIZED_DIR
+    normalized_path = NORMALIZED_DIR / f"{service_id}.json"
         
-    if not os.path.exists(normalized_path):
+    if not normalized_path.exists():
         raise HTTPException(status_code=404, detail="Pricing data not available")
         
-    # Streaming response for large files would be better
     from fastapi.responses import FileResponse
     return FileResponse(normalized_path)

@@ -5,10 +5,13 @@ import ArchitectureBuilder from './components/ArchitectureBuilder'
 // Dynamic Service Loader
 const serviceCalculators = import.meta.glob('./services/*/Calculator.jsx')
 
+import Catalog from './pages/Catalog'
+
 function App() {
     const [activeService, setActiveService] = useState('dashboard')
     const [services, setServices] = useState([])
     const [CalculatorComponent, setCalculatorComponent] = useState(null)
+    const [activeTab, setActiveTab] = useState('estimator') // 'estimator' or 'catalog'
 
     useEffect(() => {
         fetch('/api/services')
@@ -35,6 +38,7 @@ function App() {
             }
         }
         loadComponent()
+        setActiveTab('estimator') // Reset tab on service switch
     }, [activeService])
 
     return (
@@ -81,16 +85,55 @@ function App() {
                 ) : activeService === 'builder' ? (
                     <ArchitectureBuilder services={services} />
                 ) : (
-                    <Suspense fallback={<div>Loading calculator...</div>}>
-                        {CalculatorComponent ? (
-                            <CalculatorComponent serviceId={activeService} />
+                    <div className="service-view">
+                        <div className="tabs" style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+                            <button
+                                className={`tab-btn ${activeTab === 'estimator' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('estimator')}
+                                style={{
+                                    padding: '0.75rem 1rem',
+                                    background: 'none',
+                                    border: 'none',
+                                    borderBottom: activeTab === 'estimator' ? '2px solid var(--primary)' : '2px solid transparent',
+                                    color: activeTab === 'estimator' ? 'var(--text)' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                Smart Estimator
+                            </button>
+                            <button
+                                className={`tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('catalog')}
+                                style={{
+                                    padding: '0.75rem 1rem',
+                                    background: 'none',
+                                    border: 'none',
+                                    borderBottom: activeTab === 'catalog' ? '2px solid var(--primary)' : '2px solid transparent',
+                                    color: activeTab === 'catalog' ? 'var(--text)' : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                Pricing Catalog
+                            </button>
+                        </div>
+
+                        {activeTab === 'estimator' ? (
+                            <Suspense fallback={<div>Loading calculator...</div>}>
+                                {CalculatorComponent ? (
+                                    <CalculatorComponent serviceId={activeService} />
+                                ) : (
+                                    <div className="card">
+                                        <h2>Component Not Found</h2>
+                                        <p>The calculator for {activeService} could not be loaded.</p>
+                                    </div>
+                                )}
+                            </Suspense>
                         ) : (
-                            <div className="card">
-                                <h2>Component Not Found</h2>
-                                <p>The calculator for {activeService} could not be loaded.</p>
-                            </div>
+                            <Catalog serviceId={activeService} />
                         )}
-                    </Suspense>
+                    </div>
                 )}
             </main>
         </div>
