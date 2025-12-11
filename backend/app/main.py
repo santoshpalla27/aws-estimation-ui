@@ -4,6 +4,12 @@ from .api import estimate_router, pricing_router, registry
 import json
 import os
 
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="AWS Cost Estimation Platform")
 
 # CORS
