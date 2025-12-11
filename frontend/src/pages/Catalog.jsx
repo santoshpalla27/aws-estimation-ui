@@ -16,7 +16,7 @@ export default function Catalog({ serviceId }) {
             .then(res => res.json())
             .then(data => setMetadata(data))
             .catch(err => console.error("Failed to load metadata", err))
-            
+
         // Reset state on service change
         setFilters({})
         setPage(1)
@@ -31,7 +31,7 @@ export default function Catalog({ serviceId }) {
             pageSize: pageSize,
             ...filters
         })
-        
+
         // Remove empty filters
         Object.keys(filters).forEach(key => {
             if (!filters[key]) query.delete(key)
@@ -63,7 +63,7 @@ export default function Catalog({ serviceId }) {
         // Combine all keys from all items to cover sparse data
         const keys = new Set()
         data.forEach(item => Object.keys(item).forEach(k => keys.add(k)))
-        
+
         // Priority columns
         const priority = ['sku', 'price', 'location', 'instanceType', 'storageClass', 'vcpu', 'memory']
         const sorted = Array.from(keys).sort((a, b) => {
@@ -74,9 +74,9 @@ export default function Catalog({ serviceId }) {
             if (idxB !== -1) return 1
             return a.localeCompare(b)
         })
-        return sorted.filter(k => k !== 'attributes') # attributes is flattened or ignored if we use flat dicts
+        return sorted.filter(k => k !== 'attributes') // attributes is flattened or ignored if we use flat dicts
     }
-    
+
     // Flatten attributes for display?
     // The backend returns { sku, price, location, ...attributes } flattened?
     // No, backend returns:
@@ -86,15 +86,15 @@ export default function Catalog({ serviceId }) {
 
     return (
         <div className="catalog-container">
-            <div className="filters-bar" style={{ 
-                display: 'flex', gap: '1rem', padding: '1rem', 
+            <div className="filters-bar" style={{
+                display: 'flex', gap: '1rem', padding: '1rem',
                 background: 'var(--bg-secondary)', borderRadius: 'var(--radius)',
                 marginBottom: '1rem', flexWrap: 'wrap'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.7 }}>
                     <Filter size={16} /> Filters:
                 </div>
-                
+
                 {/* Dynamic Filters based on metadata */}
                 {metadata.locations && (
                     <select className="input small" onChange={e => handleFilterChange('location', e.target.value)} value={filters.location || ''}>
@@ -102,7 +102,7 @@ export default function Catalog({ serviceId }) {
                         {metadata.locations.map(v => <option key={v} value={v}>{v}</option>)}
                     </select>
                 )}
-                
+
                 {metadata.instanceTypes && (
                     <select className="input small" onChange={e => handleFilterChange('instanceType', e.target.value)} value={filters.instanceType || ''}>
                         <option value="">All Types</option>
@@ -113,11 +113,11 @@ export default function Catalog({ serviceId }) {
                 {/* Generic Search for SKU */}
                 <div style={{ position: 'relative' }}>
                     <Search size={14} style={{ position: 'absolute', left: 8, top: 9, opacity: 0.5 }} />
-                    <input 
-                        className="input small" 
-                        placeholder="Search SKU..." 
+                    <input
+                        className="input small"
+                        placeholder="Search SKU..."
                         style={{ paddingLeft: '24px' }}
-                        onChange={e => handleFilterChange('sku', e.target.value)} 
+                        onChange={e => handleFilterChange('sku', e.target.value)}
                         value={filters.sku || ''}
                     />
                 </div>
@@ -157,8 +157,8 @@ export default function Catalog({ serviceId }) {
                     Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} of {total} items
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button 
-                        className="btn small secondary" 
+                    <button
+                        className="btn small secondary"
                         disabled={page === 1}
                         onClick={() => setPage(p => p - 1)}
                     >
@@ -167,12 +167,12 @@ export default function Catalog({ serviceId }) {
                     <span style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem' }}>
                         Page {page} of {totalPages || 1}
                     </span>
-                    <button 
-                        className="btn small secondary" 
+                    <button
+                        className="btn small secondary"
                         disabled={page >= totalPages}
                         onClick={() => setPage(p => p + 1)}
                     >
-                         Next <ChevronRight size={16} />
+                        Next <ChevronRight size={16} />
                     </button>
                 </div>
             </div>
