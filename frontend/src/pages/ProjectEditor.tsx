@@ -6,7 +6,6 @@ import ReactFlow, {
     Controls,
     MiniMap,
     Node,
-    Edge,
     Connection,
     addEdge,
     useNodesState,
@@ -31,7 +30,7 @@ export function ProjectEditor() {
 
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState([])
-    const [showCatalog, setShowCatalog] = useState(true)
+    const [showCatalog] = useState(true)
 
     // Load project
     const { data: project } = useQuery({
