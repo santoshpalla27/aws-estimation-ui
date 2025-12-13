@@ -1,0 +1,63 @@
+service_id: AWSLambda
+version: "1.0.0"
+metadata:
+  service_id: AWSLambda
+  display_name: AWS Lambda
+  description: Serverless compute service - run code without provisioning servers
+  category: Compute
+  icon_url: https://aws.amazon.com/lambda/icon.png
+  tags:
+    - serverless
+    - compute
+    - functions
+
+dependencies:
+  mandatory:
+    - service: IAM
+      reason: Lambda functions require IAM execution role
+      
+  conditional:
+    - service: VPC
+      condition: vpc_config.enabled == true
+      reason: Lambda functions can run inside VPC for private resource access
+      
+    - service: APIGateway
+      condition: trigger_type == "api_gateway"
+      reason: API Gateway commonly used to trigger Lambda functions
+      
+  implicit:
+    - service: CloudWatchLogs
+      reason: Lambda automatically sends logs to CloudWatch Logs
+      cost_impact:
+        driver: log_storage
+        estimated_range: [1, 50]
+        
+    - service: CloudWatchMetrics
+      reason: Lambda automatically publishes metrics
+      cost_impact:
+        driver: custom_metrics
+        estimated_range: [0, 10]
+
+validation_rules:
+  - id: lambda_memory_optimization
+    type: warning
+    condition: memory_mb < 512 && avg_duration_ms > 5000
+    message: "Low memory allocation with high duration may indicate under-provisioning"
+    recommendation: "Consider increasing memory allocation for better performance"
+    
+  - id: lambda_timeout_check
+    type: warning
+    condition: timeout_seconds > 300
+    message: "Lambda timeout exceeds 5 minutes - consider using ECS/Fargate for long-running tasks"
+    
+  - id: lambda_concurrent_executions
+    type: info
+    condition: estimated_concurrent_executions > 1000
+    message: "High concurrency detected - ensure account limits are sufficient"
+    recommendation: "Request limit increase if needed"
+    
+  - id: lambda_vpc_cold_start
+    type: warning
+    condition: vpc_config.enabled == true
+    message: "VPC-enabled Lambda functions experience longer cold starts"
+    recommendation: "Consider using provisioned concurrency for latency-sensitive workloads"

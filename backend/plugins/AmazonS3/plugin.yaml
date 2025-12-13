@@ -1,0 +1,61 @@
+service_id: AmazonS3
+version: "1.0.0"
+metadata:
+  service_id: AmazonS3
+  display_name: Amazon S3
+  description: Scalable object storage service with 99.999999999% durability
+  category: Storage
+  icon_url: https://aws.amazon.com/s3/icon.png
+  tags:
+    - storage
+    - object-storage
+    - backup
+
+dependencies:
+  conditional:
+    - service: CloudFront
+      condition: cloudfront_enabled == true
+      reason: CloudFront CDN for S3 content delivery
+      
+    - service: S3_Replication
+      condition: replication_enabled == true
+      reason: Cross-region replication for disaster recovery
+      
+  implicit:
+    - service: DataTransfer_Out
+      condition: data_transfer_gb > 0
+      reason: Data transfer out to internet incurs charges
+      cost_impact:
+        driver: data_egress
+        estimated_range: [10, 1000]
+        
+    - service: S3_RequestCosts
+      reason: GET, PUT, POST requests incur per-request charges
+      cost_impact:
+        driver: api_requests
+        estimated_range: [1, 100]
+
+validation_rules:
+  - id: s3_versioning_enabled
+    type: warning
+    condition: versioning_enabled == false
+    message: "S3 versioning not enabled"
+    recommendation: "Enable versioning for data protection and recovery"
+    
+  - id: s3_lifecycle_policy
+    type: info
+    condition: lifecycle_policy_enabled == false && storage_gb > 1000
+    message: "No lifecycle policy configured for large bucket"
+    recommendation: "Configure lifecycle policies to transition old data to cheaper storage classes"
+    
+  - id: s3_intelligent_tiering
+    type: info
+    condition: storage_class == "STANDARD" && access_pattern == "unknown"
+    message: "Using STANDARD storage with unknown access pattern"
+    recommendation: "Consider S3 Intelligent-Tiering for automatic cost optimization"
+    
+  - id: s3_cloudfront_cdn
+    type: warning
+    condition: cloudfront_enabled == false && data_transfer_gb > 500
+    message: "High data transfer without CloudFront CDN"
+    recommendation: "Use CloudFront to reduce data transfer costs (up to 50% savings)"

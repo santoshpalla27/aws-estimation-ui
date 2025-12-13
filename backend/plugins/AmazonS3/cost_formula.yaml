@@ -1,0 +1,98 @@
+service: AmazonS3
+version: "1.0.0"
+
+inputs:
+  - name: storage_gb
+    type: number
+    required: true
+    description: "Total storage in GB"
+    
+  - name: storage_class
+    type: string
+    required: true
+    description: "S3 storage class"
+    
+  - name: put_requests_per_month
+    type: integer
+    required: true
+    description: "Number of PUT/POST requests per month"
+    
+  - name: get_requests_per_month
+    type: integer
+    required: true
+    description: "Number of GET requests per month"
+    
+  - name: data_transfer_gb
+    type: number
+    required: false
+    default: 0
+    description: "Data transfer out to internet (GB/month)"
+
+calculation_steps:
+  - id: storage_cost
+    description: "Storage cost based on storage class"
+    formula: |
+      pricing = {
+        "STANDARD": 0.023,
+        "INTELLIGENT_TIERING": 0.023,
+        "STANDARD_IA": 0.0125,
+        "ONEZONE_IA": 0.01,
+        "GLACIER_INSTANT": 0.004,
+        "GLACIER_FLEXIBLE": 0.0036,
+        "GLACIER_DEEP_ARCHIVE": 0.00099
+      }
+      storage_gb * pricing.get(storage_class, 0.023)
+    output: storage_cost
+    
+  - id: put_request_cost
+    description: "PUT/POST request costs"
+    formula: |
+      # $0.005 per 1,000 PUT requests for STANDARD
+      (put_requests_per_month / 1000) * 0.005
+    output: put_cost
+    
+  - id: get_request_cost
+    description: "GET request costs"
+    formula: |
+      # $0.0004 per 1,000 GET requests for STANDARD
+      (get_requests_per_month / 1000) * 0.0004
+    output: get_cost
+    
+  - id: data_transfer_cost
+    description: "Data transfer out to internet"
+    formula: |
+      # Tiered pricing
+      if data_transfer_gb <= 10:
+        0  # First 10 GB free
+      elif data_transfer_gb <= 10000:
+        (data_transfer_gb - 10) * 0.09  # Next 10 TB at $0.09/GB
+      elif data_transfer_gb <= 50000:
+        (10000 - 10) * 0.09 + (data_transfer_gb - 10000) * 0.085
+      else:
+        (10000 - 10) * 0.09 + (50000 - 10000) * 0.085 + (data_transfer_gb - 50000) * 0.07
+    output: transfer_cost
+    
+  - id: intelligent_tiering_monitoring
+    description: "Monitoring cost for Intelligent-Tiering"
+    formula: |
+      if storage_class == "INTELLIGENT_TIERING":
+        # $0.0025 per 1,000 objects monitored
+        estimated_objects = storage_gb * 100  # Assume 100 objects per GB
+        (estimated_objects / 1000) * 0.0025
+      else:
+        0
+    output: monitoring_cost
+
+total_formula: "storage_cost + put_cost + get_cost + transfer_cost + monitoring_cost"
+
+assumptions:
+  - "Pricing based on us-east-1 region"
+  - "First 10 GB of data transfer out is free per month"
+  - "Estimated 100 objects per GB for Intelligent-Tiering monitoring"
+  - "No retrieval costs for Glacier classes"
+  - "No cross-region replication costs"
+
+pricing_sources:
+  - name: "Amazon S3 Pricing"
+    url: "https://aws.amazon.com/s3/pricing/"
+    last_updated: "2024-01-01"

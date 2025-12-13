@@ -1,0 +1,111 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Amazon RDS Configuration",
+    "required": [
+        "engine",
+        "instance_class",
+        "storage_gb",
+        "storage_type",
+        "multi_az"
+    ],
+    "properties": {
+        "engine": {
+            "type": "string",
+            "title": "Database Engine",
+            "enum": [
+                "mysql",
+                "postgres",
+                "mariadb",
+                "oracle",
+                "sqlserver"
+            ],
+            "default": "postgres",
+            "enumNames": [
+                "MySQL",
+                "PostgreSQL",
+                "MariaDB",
+                "Oracle",
+                "SQL Server"
+            ]
+        },
+        "instance_class": {
+            "type": "string",
+            "title": "Instance Class",
+            "enum": [
+                "db.t3.micro",
+                "db.t3.small",
+                "db.t3.medium",
+                "db.t3.large",
+                "db.m5.large",
+                "db.m5.xlarge",
+                "db.m5.2xlarge",
+                "db.r5.large",
+                "db.r5.xlarge"
+            ],
+            "default": "db.t3.small"
+        },
+        "storage_gb": {
+            "type": "integer",
+            "title": "Storage (GB)",
+            "description": "Allocated storage size",
+            "minimum": 20,
+            "maximum": 65536,
+            "default": 100
+        },
+        "storage_type": {
+            "type": "string",
+            "title": "Storage Type",
+            "enum": [
+                "gp2",
+                "gp3",
+                "io1",
+                "io2"
+            ],
+            "default": "gp3",
+            "enumNames": [
+                "General Purpose SSD (gp2)",
+                "General Purpose SSD (gp3) - Recommended",
+                "Provisioned IOPS SSD (io1)",
+                "Provisioned IOPS SSD (io2)"
+            ]
+        },
+        "iops": {
+            "type": "integer",
+            "title": "Provisioned IOPS",
+            "description": "Required for io1/io2 storage types",
+            "minimum": 0,
+            "maximum": 256000,
+            "default": 0
+        },
+        "multi_az": {
+            "type": "boolean",
+            "title": "Multi-AZ Deployment",
+            "description": "Enable for high availability (doubles cost)",
+            "default": false
+        },
+        "backup_retention_days": {
+            "type": "integer",
+            "title": "Backup Retention (days)",
+            "description": "Automated backup retention period",
+            "minimum": 0,
+            "maximum": 35,
+            "default": 7
+        },
+        "storage_autoscaling": {
+            "type": "boolean",
+            "title": "Enable Storage Autoscaling",
+            "default": true
+        },
+        "environment": {
+            "type": "string",
+            "title": "Environment",
+            "enum": [
+                "development",
+                "staging",
+                "production"
+            ],
+            "default": "production"
+        }
+    }
+}

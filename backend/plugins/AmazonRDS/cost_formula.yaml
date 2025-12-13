@@ -1,0 +1,118 @@
+service: AmazonRDS
+version: "1.0.0"
+
+inputs:
+  - name: engine
+    type: string
+    required: true
+    description: "Database engine (mysql, postgres, oracle, sqlserver)"
+    
+  - name: instance_class
+    type: string
+    required: true
+    description: "RDS instance type (e.g., db.t3.micro, db.m5.large)"
+    
+  - name: storage_gb
+    type: integer
+    required: true
+    description: "Allocated storage in GB"
+    
+  - name: storage_type
+    type: string
+    required: true
+    description: "Storage type (gp2, gp3, io1, io2)"
+    
+  - name: iops
+    type: integer
+    required: false
+    default: 0
+    description: "Provisioned IOPS (for io1/io2 only)"
+    
+  - name: multi_az
+    type: boolean
+    required: true
+    description: "Multi-AZ deployment for high availability"
+    
+  - name: backup_retention_days
+    type: integer
+    required: false
+    default: 7
+    description: "Automated backup retention period"
+
+calculation_steps:
+  - id: instance_hours
+    description: "Hours per month"
+    formula: "730"
+    output: hours_per_month
+    
+  - id: instance_cost
+    description: "RDS instance cost based on type and engine"
+    formula: |
+      # Pricing varies by instance type and engine
+      # Sample pricing for common types (us-east-1)
+      pricing_map = {
+        "db.t3.micro": {"mysql": 0.017, "postgres": 0.017},
+        "db.t3.small": {"mysql": 0.034, "postgres": 0.034},
+        "db.t3.medium": {"mysql": 0.068, "postgres": 0.068},
+        "db.m5.large": {"mysql": 0.192, "postgres": 0.192},
+        "db.m5.xlarge": {"mysql": 0.384, "postgres": 0.384},
+        "db.r5.large": {"mysql": 0.24, "postgres": 0.24}
+      }
+      
+      hourly_rate = pricing_map.get(instance_class, {}).get(engine, 0.10)
+      base_cost = hourly_rate * hours_per_month
+      
+      if multi_az:
+        base_cost * 2  # Multi-AZ doubles instance cost
+      else:
+        base_cost
+    output: instance_cost
+    
+  - id: storage_cost
+    description: "EBS storage cost"
+    formula: |
+      if storage_type == "gp2":
+        storage_gb * 0.10
+      elif storage_type == "gp3":
+        storage_gb * 0.08
+      elif storage_type == "io1":
+        (storage_gb * 0.125) + (iops * 0.065)
+      elif storage_type == "io2":
+        (storage_gb * 0.125) + (iops * 0.052)
+      else:
+        storage_gb * 0.10
+    output: storage_cost
+    
+  - id: backup_storage_cost
+    description: "Backup storage cost (100% of DB size free, then $0.095/GB)"
+    formula: |
+      backup_gb = storage_gb * backup_retention_days / 7
+      billable_backup = max(0, backup_gb - storage_gb)
+      billable_backup * 0.095
+    output: backup_cost
+    
+  - id: cross_az_transfer
+    description: "Cross-AZ data transfer for Multi-AZ replication"
+    formula: |
+      if multi_az:
+        # Estimate 20% of storage as monthly data transfer
+        transfer_gb = storage_gb * 0.20
+        transfer_gb * 0.01  # $0.01 per GB cross-AZ
+      else:
+        0
+    output: cross_az_cost
+
+total_formula: "instance_cost + storage_cost + backup_cost + cross_az_cost"
+
+assumptions:
+  - "Pricing based on us-east-1 region"
+  - "On-Demand pricing (no Reserved Instances)"
+  - "Standard deployment (not Aurora)"
+  - "Backup storage estimated at 100% of DB size"
+  - "Cross-AZ transfer estimated at 20% of storage per month"
+  - "No data transfer out to internet"
+
+pricing_sources:
+  - name: "Amazon RDS Pricing"
+    url: "https://aws.amazon.com/rds/pricing/"
+    last_updated: "2024-01-01"

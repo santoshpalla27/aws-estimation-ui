@@ -1,0 +1,92 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Amazon S3 Configuration",
+    "required": [
+        "storage_gb",
+        "storage_class",
+        "put_requests_per_month",
+        "get_requests_per_month"
+    ],
+    "properties": {
+        "storage_gb": {
+            "type": "number",
+            "title": "Storage (GB)",
+            "description": "Total data stored in S3",
+            "minimum": 0,
+            "default": 1000
+        },
+        "storage_class": {
+            "type": "string",
+            "title": "Storage Class",
+            "enum": [
+                "STANDARD",
+                "INTELLIGENT_TIERING",
+                "STANDARD_IA",
+                "ONEZONE_IA",
+                "GLACIER_INSTANT",
+                "GLACIER_FLEXIBLE",
+                "GLACIER_DEEP_ARCHIVE"
+            ],
+            "default": "STANDARD",
+            "enumNames": [
+                "S3 Standard - Frequently accessed",
+                "S3 Intelligent-Tiering - Auto optimization",
+                "S3 Standard-IA - Infrequent access",
+                "S3 One Zone-IA - Single AZ, infrequent",
+                "S3 Glacier Instant Retrieval",
+                "S3 Glacier Flexible Retrieval",
+                "S3 Glacier Deep Archive"
+            ]
+        },
+        "put_requests_per_month": {
+            "type": "integer",
+            "title": "PUT Requests per Month",
+            "description": "Number of PUT/POST/COPY requests",
+            "minimum": 0,
+            "default": 10000
+        },
+        "get_requests_per_month": {
+            "type": "integer",
+            "title": "GET Requests per Month",
+            "description": "Number of GET/SELECT requests",
+            "minimum": 0,
+            "default": 100000
+        },
+        "data_transfer_gb": {
+            "type": "number",
+            "title": "Data Transfer Out (GB/month)",
+            "description": "Data transferred to internet (first 10 GB free)",
+            "minimum": 0,
+            "default": 100
+        },
+        "versioning_enabled": {
+            "type": "boolean",
+            "title": "Enable Versioning",
+            "description": "Keep multiple versions of objects",
+            "default": false
+        },
+        "lifecycle_policy_enabled": {
+            "type": "boolean",
+            "title": "Lifecycle Policy Configured",
+            "default": false
+        },
+        "cloudfront_enabled": {
+            "type": "boolean",
+            "title": "Use CloudFront CDN",
+            "description": "Reduce data transfer costs with CloudFront",
+            "default": false
+        },
+        "access_pattern": {
+            "type": "string",
+            "title": "Access Pattern",
+            "enum": [
+                "frequent",
+                "infrequent",
+                "archive",
+                "unknown"
+            ],
+            "default": "frequent"
+        }
+    }
+}
