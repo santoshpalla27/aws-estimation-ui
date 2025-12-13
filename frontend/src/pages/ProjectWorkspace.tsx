@@ -1,4 +1,3 @@
-```typescript
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
@@ -95,22 +94,20 @@ export function ProjectWorkspace() {
                 <div className="flex items-center gap-2 rounded-lg bg-muted p-1">
                     <button
                         onClick={() => setViewMode('catalog')}
-                        className={`flex items - center gap - 2 rounded - md px - 4 py - 2 text - sm font - medium transition - colors ${
-    viewMode === 'catalog'
-        ? 'bg-background text-foreground shadow-sm'
-        : 'text-muted-foreground hover:text-foreground'
-} `}
+                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'catalog'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
                     >
                         <Layers className="h-4 w-4" />
                         Services Catalog
                     </button>
                     <button
                         onClick={() => setViewMode('architecture')}
-                        className={`flex items - center gap - 2 rounded - md px - 4 py - 2 text - sm font - medium transition - colors ${
-    viewMode === 'architecture'
-        ? 'bg-background text-foreground shadow-sm'
-        : 'text-muted-foreground hover:text-foreground'
-} `}
+                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'architecture'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
                     >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -119,11 +116,10 @@ export function ProjectWorkspace() {
                     </button>
                     <button
                         onClick={() => setViewMode('configuration')}
-                        className={`flex items - center gap - 2 rounded - md px - 4 py - 2 text - sm font - medium transition - colors ${
-    viewMode === 'configuration'
-        ? 'bg-background text-foreground shadow-sm'
-        : 'text-muted-foreground hover:text-foreground'
-} `}
+                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'configuration'
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
                     >
                         <Settings className="h-4 w-4" />
                         Configuration
@@ -162,4 +158,3 @@ export function ProjectWorkspace() {
         </div>
     )
 }
-```
