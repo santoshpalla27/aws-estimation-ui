@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { ServiceMetadata } from '@/lib/api'
-import { Search, Server, Database, Network, Cloud, Shield, Code } from 'lucide-react'
+import { Search, Server, Database, Network, Cloud, Shield, Code, Settings } from 'lucide-react'
 
 interface ServiceCatalogProps {
     services: ServiceMetadata[]
+    fullPage?: boolean
 }
 
 const categoryIcons: Record<string, any> = {
@@ -12,10 +13,11 @@ const categoryIcons: Record<string, any> = {
     Networking: Network,
     Storage: Cloud,
     Security: Shield,
+    Management: Settings,
     'Developer Tools': Code,
 }
 
-export function ServiceCatalog({ services }: ServiceCatalogProps) {
+export function ServiceCatalog({ services, fullPage = false }: ServiceCatalogProps) {
     const [search, setSearch] = useState('')
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -32,6 +34,102 @@ export function ServiceCatalog({ services }: ServiceCatalogProps) {
         event.dataTransfer.effectAllowed = 'move'
     }
 
+    if (fullPage) {
+        return (
+            <div className="space-y-6">
+                {/* Search and Filters */}
+                <div className="flex items-center gap-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search services..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full rounded-lg border border-input bg-background py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                    </div>
+                </div>
+
+                {/* Categories */}
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => setSelectedCategory(null)}
+                        className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${!selectedCategory
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                            }`}
+                    >
+                        All Services ({services.length})
+                    </button>
+                    {categories.map((category) => {
+                        const count = services.filter((s) => s.category === category).length
+                        return (
+                            <button
+                                key={category}
+                                onClick={() => setSelectedCategory(category)}
+                                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${selectedCategory === category
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    }`}
+                            >
+                                {category} ({count})
+                            </button>
+                        )
+                    })}
+                </div>
+
+                {/* Services Grid */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredServices.map((service) => {
+                        const Icon = categoryIcons[service.category] || Server
+                        return (
+                            <div
+                                key={service.service_id}
+                                draggable
+                                onDragStart={(e) => onDragStart(e, service)}
+                                className="cursor-move rounded-lg border border-border bg-card p-6 transition-all hover:border-primary hover:shadow-md"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className="rounded-lg bg-primary/10 p-3">
+                                        <Icon className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-foreground">{service.display_name}</h3>
+                                        <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                                            {service.description}
+                                        </p>
+                                        <div className="mt-3 flex flex-wrap gap-1">
+                                            {service.tags.slice(0, 3).map((tag) => (
+                                                <span
+                                                    key={tag}
+                                                    className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+                                                >
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+
+                {filteredServices.length === 0 && (
+                    <div className="py-16 text-center">
+                        <Server className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <h3 className="mt-4 text-lg font-semibold text-foreground">No services found</h3>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Try adjusting your search or filters
+                        </p>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    // Sidebar view (original)
     return (
         <div className="flex h-full flex-col">
             <div className="border-b border-border p-4">
