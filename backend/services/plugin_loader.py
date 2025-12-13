@@ -49,12 +49,19 @@ class PluginLoader:
                 with open(plugin_file, 'r') as f:
                     plugin_data = yaml.safe_load(f)
                 
-                metadata = ServiceMetadata(**plugin_data.get("metadata", {}))
+                metadata_dict = plugin_data.get("metadata", {})
                 
                 # Filter by category if specified
-                if category and metadata.category != category:
+                if category and metadata_dict.get("category") != category:
                     continue
                 
+                # Load UI schema
+                ui_schema = self._load_ui_schema(service_dir)
+                
+                # Add ui_schema to metadata
+                metadata_dict["ui_schema"] = ui_schema
+                
+                metadata = ServiceMetadata(**metadata_dict)
                 services.append(metadata)
                 
             except Exception as e:

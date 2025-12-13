@@ -109,6 +109,7 @@ class ServiceMetadata(BaseModel):
     category: str
     icon_url: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
+    ui_schema: Optional[Dict[str, Any]] = None  # JSON Schema for service configuration
 
 
 class ServiceDefinition(BaseModel):
