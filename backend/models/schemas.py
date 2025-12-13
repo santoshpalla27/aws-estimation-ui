@@ -13,7 +13,7 @@ from uuid import UUID
 class ProjectBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ProjectCreate(ProjectBase):
@@ -23,7 +23,7 @@ class ProjectCreate(ProjectBase):
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    meta_data: Optional[Dict[str, Any]] = None
 
 
 class Project(ProjectBase):
@@ -41,7 +41,7 @@ class ServiceNode(BaseModel):
     config: Dict[str, Any]
     region: str
     availability_zone: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 # Dependency Edge schemas
@@ -51,7 +51,7 @@ class DependencyEdge(BaseModel):
     type: str  # mandatory, conditional, implicit, cost_only
     reason: str
     cost_impact: Optional[Dict[str, Any]] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 # Infrastructure Graph schemas
@@ -59,7 +59,7 @@ class InfrastructureGraphCreate(BaseModel):
     project_id: UUID
     nodes: List[ServiceNode]
     edges: List[DependencyEdge]
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    meta_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class InfrastructureGraph(BaseModel):
@@ -67,7 +67,7 @@ class InfrastructureGraph(BaseModel):
     project_id: UUID
     nodes: List[ServiceNode]
     edges: List[DependencyEdge]
-    metadata: Dict[str, Any]
+    meta_data: Dict[str, Any]
     created_at: datetime
     updated_at: datetime
     

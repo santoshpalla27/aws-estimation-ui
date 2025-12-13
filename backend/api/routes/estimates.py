@@ -52,7 +52,7 @@ async def create_estimate(
             project_id=project_id,
             nodes=[node.model_dump() for node in graph.nodes.values()],
             edges=[edge.model_dump() for edge in graph.edges],
-            metadata=graph.metadata
+            meta_data=graph.meta_data
         )
         db.add(db_graph)
         await db.flush()

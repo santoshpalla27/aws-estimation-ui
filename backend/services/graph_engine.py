@@ -28,7 +28,7 @@ class InfrastructureGraph:
     nodes: Dict[str, ServiceNode]
     edges: List[DependencyEdge]
     graph: nx.DiGraph
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    meta_data: Dict[str, Any] = field(default_factory=dict)
     validation_errors: List[str] = field(default_factory=list)
     validation_warnings: List[str] = field(default_factory=list)
 

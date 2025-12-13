@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS projects (
     description TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    metadata JSONB DEFAULT '{}'::jsonb
+    meta_data JSONB DEFAULT '{}'::jsonb
 );
 
 -- Infrastructure graphs
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS infrastructure_graphs (
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     nodes JSONB NOT NULL DEFAULT '[]'::jsonb,
     edges JSONB NOT NULL DEFAULT '[]'::jsonb,
-    metadata JSONB DEFAULT '{}'::jsonb,
+    meta_data JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -92,6 +92,6 @@ CREATE TRIGGER update_pricing_updated_at BEFORE UPDATE ON pricing_data
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert sample project for testing
-INSERT INTO projects (name, description, metadata) VALUES
+INSERT INTO projects (name, description, meta_data) VALUES
     ('Sample 3-Tier Web App', 'Example architecture with VPC, ALB, EC2, and RDS', '{"tags": ["example", "web-app"]}'::jsonb)
 ON CONFLICT DO NOTHING;
