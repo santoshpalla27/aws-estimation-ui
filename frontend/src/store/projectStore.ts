@@ -1,18 +1,21 @@
 import { create } from 'zustand'
-import { ServiceNode, DependencyEdge, Estimate } from '@/lib/api'
+import { Node, Edge } from 'reactflow'
+import { Estimate } from '@/lib/api'
 
 interface ProjectStore {
     // Project state
     projectId: string | null
     setProjectId: (id: string | null) => void
 
-    // Graph state
-    nodes: ServiceNode[]
-    edges: DependencyEdge[]
-    addNode: (node: ServiceNode) => void
-    updateNode: (id: string, updates: Partial<ServiceNode>) => void
+    // Graph state (using ReactFlow types)
+    nodes: Node[]
+    edges: Edge[]
+    setNodes: (nodes: Node[]) => void
+    setEdges: (edges: Edge[]) => void
+    addNode: (node: Node) => void
+    updateNode: (id: string, updates: Partial<Node>) => void
     removeNode: (id: string) => void
-    addEdge: (edge: DependencyEdge) => void
+    addEdge: (edge: Edge) => void
     removeEdge: (source: string, target: string) => void
     clearGraph: () => void
 
@@ -35,6 +38,9 @@ export const useProjectStore = create<ProjectStore>((set) => ({
     // Graph state
     nodes: [],
     edges: [],
+
+    setNodes: (nodes) => set({ nodes }),
+    setEdges: (edges) => set({ edges }),
 
     addNode: (node) =>
         set((state) => ({
