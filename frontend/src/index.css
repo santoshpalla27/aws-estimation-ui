@@ -53,24 +53,28 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
-/* ReactFlow custom styles */
-.react-flow__node {
-  @apply rounded-lg border-2 border-border bg-card shadow-md;
-}
+@layer components {
 
-.react-flow__node.selected {
-  @apply border-primary;
-}
+  /* ReactFlow custom styles */
+  .react-flow__node {
+    @apply rounded-lg border-2 border-border bg-card shadow-md;
+  }
 
-.react-flow__edge-path {
-  @apply stroke-muted-foreground;
-}
+  .react-flow__node.selected {
+    @apply border-primary;
+  }
 
-.react-flow__edge.selected .react-flow__edge-path {
-  @apply stroke-primary;
+  .react-flow__edge-path {
+    @apply stroke-muted-foreground;
+  }
+
+  .react-flow__edge.selected .react-flow__edge-path {
+    @apply stroke-primary;
+  }
 }
