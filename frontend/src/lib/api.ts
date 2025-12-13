@@ -63,6 +63,7 @@ export interface ServiceMetadata {
     category: string
     icon_url?: string
     tags: string[]
+    ui_schema?: any  // JSON Schema for service configuration form
 }
 
 // API functions
