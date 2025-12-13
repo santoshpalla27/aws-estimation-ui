@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FolderOpen } from 'lucide-react'
 import { projectsApi, Project } from '@/lib/api'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 
 export function Dashboard() {
     const navigate = useNavigate()
