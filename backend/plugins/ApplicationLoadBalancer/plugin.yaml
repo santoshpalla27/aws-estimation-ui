@@ -1,0 +1,33 @@
+service_id: ApplicationLoadBalancer
+version: "1.0.0"
+metadata:
+  service_id: ApplicationLoadBalancer
+  display_name: Application Load Balancer
+  description: Layer 7 load balancer for HTTP/HTTPS traffic
+  category: Networking
+  icon_url: https://aws.amazon.com/elb/icon.png
+  tags:
+    - load-balancer
+    - networking
+    - high-availability
+
+dependencies:
+  mandatory:
+    - service: VPC
+      reason: ALB must be deployed in a VPC
+      
+  conditional:
+    - service: EC2
+      condition: target_type == "instance"
+      reason: EC2 instances as targets
+      
+    - service: Lambda
+      condition: target_type == "lambda"
+      reason: Lambda functions as targets
+
+validation_rules:
+  - id: alb_multi_az
+    type: warning
+    condition: availability_zones < 2
+    message: "ALB deployed in single AZ"
+    recommendation: "Deploy ALB across multiple AZs for high availability"

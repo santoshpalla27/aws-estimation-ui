@@ -1,0 +1,52 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Amazon VPC Configuration",
+    "required": [
+        "nat_gateway_count"
+    ],
+    "properties": {
+        "cidr_block": {
+            "type": "string",
+            "title": "CIDR Block",
+            "default": "10.0.0.0/16"
+        },
+        "nat_gateway_count": {
+            "type": "integer",
+            "title": "NAT Gateways",
+            "description": "Number of NAT Gateways (one per AZ recommended)",
+            "minimum": 0,
+            "maximum": 10,
+            "default": 1
+        },
+        "nat_data_processed_gb": {
+            "type": "number",
+            "title": "NAT Data Processed (GB/month)",
+            "description": "Data processed through NAT Gateway",
+            "minimum": 0,
+            "default": 100
+        },
+        "vpc_endpoints_count": {
+            "type": "integer",
+            "title": "VPC Endpoints",
+            "description": "Interface/Gateway endpoints for AWS services",
+            "minimum": 0,
+            "default": 0
+        },
+        "multi_az": {
+            "type": "boolean",
+            "title": "Multi-AZ Deployment",
+            "default": true
+        },
+        "flow_logs_enabled": {
+            "type": "boolean",
+            "title": "Enable VPC Flow Logs",
+            "default": false
+        },
+        "vpc_endpoints_enabled": {
+            "type": "boolean",
+            "title": "Use VPC Endpoints",
+            "default": false
+        }
+    }
+}

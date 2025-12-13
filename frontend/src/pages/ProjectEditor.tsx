@@ -17,6 +17,7 @@ import { useProjectStore } from '@/store/projectStore'
 import { ServiceNode } from './ServiceNode'
 import { ServiceCatalog } from './ServiceCatalog'
 import { EstimateSummary } from './EstimateSummary'
+import { ServiceConfigDialog } from '@/components/ServiceConfigDialog'
 import { generateId } from '@/lib/utils'
 import { Calculator } from 'lucide-react'
 
@@ -31,6 +32,8 @@ export function ProjectEditor() {
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState([])
     const [showCatalog] = useState(true)
+    const [configDialogOpen, setConfigDialogOpen] = useState(false)
+    const [selectedNode, setSelectedNode] = useState<Node | null>(null)
 
     // Load project
     const { data: project } = useQuery({
@@ -114,6 +117,30 @@ export function ProjectEditor() {
         event.dataTransfer.dropEffect = 'move'
     }
 
+    const onNodeDoubleClick = (_event: any, node: Node) => {
+        setSelectedNode(node)
+        setConfigDialogOpen(true)
+    }
+
+    const saveNodeConfig = (config: Record<string, any>) => {
+        if (!selectedNode) return
+
+        setNodes((nds: Node[]) =>
+            nds.map((node: Node) =>
+                node.id === selectedNode.id
+                    ? { ...node, data: { ...node.data, config } }
+                    : node
+            )
+        )
+    }
+
+    // Get UI schema for selected node
+    const getNodeUISchema = () => {
+        if (!selectedNode || !services) return null
+        const service = services.find((s: ServiceMetadata) => s.service_id === selectedNode.data.service_type)
+        return service?.ui_schema || null
+    }
+
     return (
         <div className="flex h-full">
             {/* Service Catalog Sidebar */}
@@ -152,6 +179,7 @@ export function ProjectEditor() {
                             onConnect={onConnect}
                             onDrop={onDrop}
                             onDragOver={onDragOver}
+                            onNodeDoubleClick={onNodeDoubleClick}
                             nodeTypes={nodeTypes}
                             fitView
                         >
@@ -168,6 +196,19 @@ export function ProjectEditor() {
                 <div className="w-96 border-l border-border bg-card">
                     <EstimateSummary estimate={estimate} />
                 </div>
+            )}
+
+            {/* Service Configuration Dialog */}
+            {selectedNode && (
+                <ServiceConfigDialog
+                    isOpen={configDialogOpen}
+                    onClose={() => setConfigDialogOpen(false)}
+                    serviceType={selectedNode.data.service_type}
+                    serviceName={selectedNode.data.display_name}
+                    currentConfig={selectedNode.data.config || {}}
+                    uiSchema={getNodeUISchema()}
+                    onSave={saveNodeConfig}
+                />
             )}
         </div>
     )

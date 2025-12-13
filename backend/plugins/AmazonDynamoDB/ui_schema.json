@@ -1,0 +1,73 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Amazon DynamoDB Configuration",
+    "required": [
+        "capacity_mode",
+        "storage_gb"
+    ],
+    "properties": {
+        "capacity_mode": {
+            "type": "string",
+            "title": "Capacity Mode",
+            "enum": [
+                "PROVISIONED",
+                "ON_DEMAND"
+            ],
+            "default": "ON_DEMAND",
+            "enumNames": [
+                "Provisioned (predictable traffic)",
+                "On-Demand (unpredictable traffic)"
+            ]
+        },
+        "read_capacity_units": {
+            "type": "integer",
+            "title": "Read Capacity Units (RCU)",
+            "description": "For provisioned mode only",
+            "minimum": 1,
+            "default": 5
+        },
+        "write_capacity_units": {
+            "type": "integer",
+            "title": "Write Capacity Units (WCU)",
+            "description": "For provisioned mode only",
+            "minimum": 1,
+            "default": 5
+        },
+        "storage_gb": {
+            "type": "number",
+            "title": "Storage (GB)",
+            "minimum": 0,
+            "default": 10
+        },
+        "read_requests_millions": {
+            "type": "number",
+            "title": "Read Requests (millions/month)",
+            "description": "For on-demand mode",
+            "minimum": 0,
+            "default": 10
+        },
+        "write_requests_millions": {
+            "type": "number",
+            "title": "Write Requests (millions/month)",
+            "description": "For on-demand mode",
+            "minimum": 0,
+            "default": 5
+        },
+        "streams_enabled": {
+            "type": "boolean",
+            "title": "Enable DynamoDB Streams",
+            "default": false
+        },
+        "traffic_pattern": {
+            "type": "string",
+            "title": "Traffic Pattern",
+            "enum": [
+                "predictable",
+                "unpredictable",
+                "spiky"
+            ],
+            "default": "predictable"
+        }
+    }
+}
