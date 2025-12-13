@@ -1,39 +1,92 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-      # Mount services and app code for hot reloading if desired (optional)
-      # - ./services:/app/services 
-      # - ./backend:/app/backend
-    environment:
-      - PYTHONUNBUFFERED=1
-
+  # Frontend - React Application
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "5173:80"
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
+    networks:
+      - app-network
+    restart: unless-stopped
 
-  # Utility container to run data pipeline
-  data-pipeline:
+  # Backend API - FastAPI
+  backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://costuser:${POSTGRES_PASSWORD:-securepass}@postgres:5432/costdb
+      - REDIS_URL=redis://redis:6379
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENVIRONMENT=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
     volumes:
-      - ./data:/app/data
-    command: >
-      sh -c "python backend/downloader/main.py && 
-             python backend/normalizer/main.py && 
-             python backend/metadata/main.py"
-    profiles:
-      - tools # Only run when explicitly requested: docker compose --profile tools up
+      - ./backend/plugins:/app/plugins:ro
+
+  # PostgreSQL - Metadata & Projects
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=costdb
+      - POSTGRES_USER=costuser
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-securepass}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U costuser -d costdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Pricing & Dependency Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local

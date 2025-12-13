@@ -1,0 +1,56 @@
+service_id: AmazonEC2
+version: "1.0.0"
+category: Compute
+
+metadata:
+  service_id: AmazonEC2
+  display_name: "Amazon EC2"
+  description: "Elastic Compute Cloud - Virtual servers in the cloud"
+  category: Compute
+  icon_url: "/icons/ec2.svg"
+  tags:
+    - compute
+    - virtual-machine
+    - linux
+    - windows
+
+dependencies:
+  mandatory:
+    - service: AmazonVPC
+      reason: "EC2 instances must run in a VPC"
+      min_count: 1
+      max_count: 1
+  
+  conditional:
+    - service: AWSELB
+      condition: "config.get('load_balanced', False)"
+      reason: "Load balancer required if load_balanced enabled"
+    
+    - service: AmazonEBS
+      condition: "config.get('root_volume_type') != 'instance_store'"
+      reason: "EBS volume required for persistent storage"
+  
+  implicit:
+    - service: NAT_GATEWAY_COST
+      condition: "vpc.subnet_type == 'private' and config.get('internet_access', True)"
+      cost_impact:
+        driver: "nat_gateway_data_processing"
+        formula: "estimated_monthly_gb * pricing.nat_gateway_per_gb[region]"
+        estimated_range: [10, 500]
+      reason: "NAT Gateway required for internet access from private subnet"
+    
+    - service: DATA_TRANSFER_COST
+      condition: "not has_dependency('AmazonCloudFront')"
+      cost_impact:
+        driver: "ec2_data_transfer_out"
+        formula: "estimated_egress_gb * pricing.data_transfer_tiers[region]"
+        estimated_range: [5, 1000]
+      reason: "Data transfer out charges apply"
+
+validation_rules:
+  - rule_id: "ec2_no_reserved_instances"
+    severity: "WARNING"
+    category: "COST"
+    condition: "config.get('instance_count', 1) >= 5"
+    message: "Consider Reserved Instances for predictable workloads"
+    recommendation: "1-year RI can save up to 40%"

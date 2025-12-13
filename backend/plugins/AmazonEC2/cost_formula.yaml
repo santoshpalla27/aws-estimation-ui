@@ -1,0 +1,63 @@
+service: AmazonEC2
+formula_version: "1.0.0"
+
+inputs:
+  - name: instance_type
+    type: string
+    required: true
+    description: "EC2 instance type (e.g., 'm5.large')"
+  
+  - name: instance_count
+    type: integer
+    required: false
+    default: 1
+    validation:
+      min: 1
+      max: 1000
+  
+  - name: operating_system
+    type: enum
+    enum_values: [Linux, Windows, RHEL, SUSE]
+    default: Linux
+  
+  - name: ebs_volumes
+    type: array
+    required: false
+    default: []
+  
+  - name: estimated_monthly_egress_gb
+    type: float
+    required: false
+    default: 100.0
+    description: "Estimated monthly data transfer out"
+
+calculation_steps:
+  - step_id: base_instance_cost
+    formula: |
+      pricing.on_demand_hourly[config['instance_type']][config['operating_system']]
+      * 730 * config.get('instance_count', 1)
+    description: "Base EC2 instance cost (on-demand, 24/7)"
+    unit: USD
+  
+  - step_id: ebs_storage_cost
+    formula: |
+      sum(
+        pricing.ebs_storage[volume['volume_type']] * volume['size_gb']
+        for volume in config.get('ebs_volumes', [])
+      )
+    description: "EBS volume storage cost"
+    unit: USD
+  
+  - step_id: data_transfer_out
+    formula: |
+      max(0, (config.get('estimated_monthly_egress_gb', 100) - 100) * 0.09)
+    description: "Data transfer out cost (first 100GB free)"
+    unit: USD
+
+total_formula: |
+  base_instance_cost + ebs_storage_cost + data_transfer_out
+
+assumptions:
+  - "730 hours per month (24/7 operation)"
+  - "On-demand pricing (no Reserved Instances or Savings Plans)"
+  - "Data transfer within same region unless CloudFront is used"
