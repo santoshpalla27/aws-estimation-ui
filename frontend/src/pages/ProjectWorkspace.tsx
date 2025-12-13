@@ -1,17 +1,21 @@
+```typescript
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { Layers, Settings, ArrowLeft } from 'lucide-react'
-import { projectsApi, servicesApi } from '@/lib/api'
+import { projectsApi, servicesApi, estimatesApi } from '@/lib/api'
+import { useProjectStore } from '@/store/projectStore'
 import { ServiceCatalog } from './ServiceCatalog'
 import { ProjectEditor } from './ProjectEditor'
+import { ConfigurationPanel } from './ConfigurationPanel'
 
 type ViewMode = 'catalog' | 'architecture' | 'configuration'
 
 export function ProjectWorkspace() {
     const { projectId } = useParams<{ projectId: string }>()
     const navigate = useNavigate()
-    const [viewMode, setViewMode] = useState<ViewMode>('catalog')
+    const [viewMode, setViewMode] = useState<ViewMode>('configuration')
+    const { nodes, edges, setEstimate, setIsCalculating } = useProjectStore()
 
     // Load project
     const { data: project } = useQuery({
@@ -31,6 +35,42 @@ export function ProjectWorkspace() {
             return response.data
         },
     })
+
+    // Calculate estimate mutation
+    const calculateMutation = useMutation({
+        mutationFn: async () => {
+            setIsCalculating(true)
+            const response = await estimatesApi.create(projectId!, {
+                services: nodes.map((node) => ({
+                    id: node.id,
+                    service_type: node.data.service_type,
+                    config: node.data.config || {},
+                    region: 'us-east-1',
+                    meta_data: {},
+                })),
+                dependencies: edges.map((edge) => ({
+                    source: edge.source,
+                    target: edge.target,
+                    type: 'dependency',
+                    reason: 'User defined',
+                    meta_data: {},
+                })),
+            })
+            return response.data
+        },
+        onSuccess: (data) => {
+            setEstimate(data)
+            setIsCalculating(false)
+        },
+        onError: (error) => {
+            console.error('Failed to calculate estimate:', error)
+            setIsCalculating(false)
+        },
+    })
+
+    const handleCalculateCost = () => {
+        calculateMutation.mutate()
+    }
 
     return (
         <div className="flex h-screen flex-col bg-background">
@@ -55,20 +95,22 @@ export function ProjectWorkspace() {
                 <div className="flex items-center gap-2 rounded-lg bg-muted p-1">
                     <button
                         onClick={() => setViewMode('catalog')}
-                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'catalog'
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                            }`}
+                        className={`flex items - center gap - 2 rounded - md px - 4 py - 2 text - sm font - medium transition - colors ${
+    viewMode === 'catalog'
+        ? 'bg-background text-foreground shadow-sm'
+        : 'text-muted-foreground hover:text-foreground'
+} `}
                     >
                         <Layers className="h-4 w-4" />
                         Services Catalog
                     </button>
                     <button
                         onClick={() => setViewMode('architecture')}
-                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'architecture'
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                            }`}
+                        className={`flex items - center gap - 2 rounded - md px - 4 py - 2 text - sm font - medium transition - colors ${
+    viewMode === 'architecture'
+        ? 'bg-background text-foreground shadow-sm'
+        : 'text-muted-foreground hover:text-foreground'
+} `}
                     >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -77,10 +119,11 @@ export function ProjectWorkspace() {
                     </button>
                     <button
                         onClick={() => setViewMode('configuration')}
-                        className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'configuration'
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                            }`}
+                        className={`flex items - center gap - 2 rounded - md px - 4 py - 2 text - sm font - medium transition - colors ${
+    viewMode === 'configuration'
+        ? 'bg-background text-foreground shadow-sm'
+        : 'text-muted-foreground hover:text-foreground'
+} `}
                     >
                         <Settings className="h-4 w-4" />
                         Configuration
@@ -109,23 +152,14 @@ export function ProjectWorkspace() {
                 )}
 
                 {viewMode === 'configuration' && (
-                    <div className="flex h-full items-center justify-center">
-                        <div className="text-center">
-                            <Settings className="mx-auto h-16 w-16 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold text-foreground">Service Configuration</h3>
-                            <p className="mt-2 text-sm text-muted-foreground">
-                                Double-click any service in the Architecture view to configure it
-                            </p>
-                            <button
-                                onClick={() => setViewMode('architecture')}
-                                className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                            >
-                                Go to Architecture
-                            </button>
-                        </div>
-                    </div>
+                    <ConfigurationPanel
+                        services={services || []}
+                        onCalculateCost={handleCalculateCost}
+                        isCalculating={calculateMutation.isPending}
+                    />
                 )}
             </div>
         </div>
     )
 }
+```
