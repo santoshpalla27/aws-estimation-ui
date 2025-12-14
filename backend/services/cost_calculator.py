@@ -142,9 +142,10 @@ class CostCalculator:
         
         # Try to load service plugin and use formula engine
         try:
-            # Load plugin metadata
-            plugin_metadata = self.plugin_loader.get_service(service_type)
-            if not plugin_metadata:
+            # Load plugin definition
+            service_def = await self.plugin_loader.load_service(service_type)
+            
+            if not service_def:
                 self.logger.warning("service_not_found", service_type=service_type)
                 return CostResult(
                     node_id=node.id,
@@ -155,9 +156,8 @@ class CostCalculator:
                     warnings=[f"Service {service_type} plugin not found"]
                 )
             
-            # Load cost formula
-            formula_path = plugin_metadata.get('cost_formula_path')
-            if not formula_path:
+            # Check if cost formula exists
+            if not service_def.cost_formula:
                 self.logger.warning("no_cost_formula", service_type=service_type)
                 return CostResult(
                     node_id=node.id,
@@ -168,9 +168,9 @@ class CostCalculator:
                     warnings=[f"Service {service_type} has no cost formula"]
                 )
             
-            # Read formula file
-            with open(formula_path, 'r') as f:
-                formula_yaml = f.read()
+            # Convert cost_formula dict to YAML string for FormulaEngine
+            import yaml
+            formula_yaml = yaml.dump(service_def.cost_formula)
             
             # Execute formula
             from services.formula_engine import FormulaEngine
