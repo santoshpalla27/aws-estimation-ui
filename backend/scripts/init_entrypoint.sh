@@ -18,9 +18,9 @@ echo "✅ PostgreSQL is ready!"
 # Change to app directory (where backend code is)
 cd /app
 
-# Run Alembic migrations
+# Run Alembic migrations using the CLI
 echo "📦 Running database migrations..."
-python -m alembic upgrade head
+/usr/local/bin/alembic upgrade head || python3 -c "from alembic.config import Config; from alembic import command; cfg = Config('alembic.ini'); command.upgrade(cfg, 'head')"
 
 # Seed pricing data
 echo "🌱 Seeding pricing data..."
