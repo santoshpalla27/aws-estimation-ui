@@ -59,8 +59,20 @@ export function ProjectEditor() {
         mutationFn: async () => {
             setIsCalculating(true)
             const response = await estimatesApi.create(projectId!, {
-                services: storeNodes,
-                dependencies: storeEdges,
+                services: storeNodes.map((node) => ({
+                    id: node.id,
+                    service_type: node.data.service_type,
+                    config: node.data.config || {},
+                    region: 'us-east-1',
+                    metadata: {},
+                })),
+                dependencies: storeEdges.map((edge) => ({
+                    source: edge.source,
+                    target: edge.target,
+                    type: 'dependency',
+                    reason: 'User defined',
+                    metadata: {},
+                })),
             })
             return response.data
         },

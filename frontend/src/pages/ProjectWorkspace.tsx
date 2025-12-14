@@ -45,14 +45,14 @@ export function ProjectWorkspace() {
                     service_type: node.data.service_type,
                     config: node.data.config || {},
                     region: 'us-east-1',
-                    meta_data: {},
+                    metadata: {},
                 })),
                 dependencies: edges.map((edge) => ({
                     source: edge.source,
                     target: edge.target,
                     type: 'dependency',
                     reason: 'User defined',
-                    meta_data: {},
+                    metadata: {},
                 })),
             })
             return response.data
@@ -95,8 +95,8 @@ export function ProjectWorkspace() {
                     <button
                         onClick={() => setViewMode('catalog')}
                         className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'catalog'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                     >
                         <Layers className="h-4 w-4" />
@@ -105,8 +105,8 @@ export function ProjectWorkspace() {
                     <button
                         onClick={() => setViewMode('architecture')}
                         className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'architecture'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                     >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -117,8 +117,8 @@ export function ProjectWorkspace() {
                     <button
                         onClick={() => setViewMode('configuration')}
                         className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'configuration'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                             }`}
                     >
                         <Settings className="h-4 w-4" />
