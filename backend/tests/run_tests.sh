@@ -45,14 +45,24 @@ echo "=============================================="
 echo -e "${YELLOW}🧪 Test Suite 1: API Endpoints${NC}"
 pytest /app/tests/integration/test_api_endpoints.py -v --tb=short --color=yes || TEST_FAILED=1
 
-# Test 2: Service Calculations
+# Test 2: Service Calculations (S3, EC2)
 echo ""
-echo -e "${YELLOW}🧪 Test Suite 2: Service Cost Calculations${NC}"
+echo -e "${YELLOW}🧪 Test Suite 2: Service Cost Calculations (S3, EC2)${NC}"
 pytest /app/tests/integration/test_service_calculations.py -v --tb=short --color=yes || TEST_FAILED=1
 
-# Test 3: End-to-End Workflows
+# Test 3: All Services (Lambda, RDS, DynamoDB, etc.)
 echo ""
-echo -e "${YELLOW}🧪 Test Suite 3: End-to-End Workflows${NC}"
+echo -e "${YELLOW}🧪 Test Suite 3: All AWS Services (51 services)${NC}"
+pytest /app/tests/integration/test_all_services.py -v --tb=short --color=yes || TEST_FAILED=1
+
+# Test 4: Calculator and Engine Components
+echo ""
+echo -e "${YELLOW}🧪 Test Suite 4: Calculator & Engine Components${NC}"
+pytest /app/tests/integration/test_calculator_engines.py -v --tb=short --color=yes || TEST_FAILED=1
+
+# Test 5: End-to-End Workflows
+echo ""
+echo -e "${YELLOW}🧪 Test Suite 5: End-to-End Workflows${NC}"
 pytest /app/tests/integration/test_workflows.py -v --tb=short --color=yes || TEST_FAILED=1
 
 # Summary
