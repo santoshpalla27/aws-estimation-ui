@@ -177,33 +177,23 @@ class CostCalculator:
                     if prop_name not in config and 'default' in prop_def:
                         config[prop_name] = prop_def['default']
             
-            # Load pricing context for service/region (LOCAL ONLY - NO API CALLS)
-            pricing_context = await self.pricing_resolver.get_context(
-                service=service_type,
-                region=node.region
-            )
-            
             # Convert cost_formula dict to YAML string for FormulaEngine
             import yaml
             formula_yaml = yaml.dump(service_def.cost_formula)
             
-            # Execute formula with pricing context
+            # Execute formula WITHOUT pricing context (use hardcoded values in formulas)
             from services.formula_engine import FormulaEngine
             engine = FormulaEngine()
             formula_def = engine.load_formula(formula_yaml)
-            result = engine.execute_formula(formula_def, config, pricing=pricing_context)
+            result = engine.execute_formula(formula_def, config)
             
             # Convert to CostResult
             breakdown_dict = {}
             for step_id, step_data in result['breakdown'].items():
                 breakdown_dict[step_id] = Decimal(str(step_data['value']))
             
-            # Collect assumptions (include pricing metadata)
+            # Collect assumptions
             assumptions = result.get('assumptions', [])
-            if hasattr(pricing_context, 'version'):
-                assumptions.append(
-                    f"Pricing: {pricing_context.version} (fetched {pricing_context.fetched_at.strftime('%Y-%m-%d')})"
-                )
             
             return CostResult(
                 node_id=node.id,
