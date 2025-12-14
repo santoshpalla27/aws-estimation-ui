@@ -20,13 +20,16 @@ MAX_RETRIES=60
 RETRY_COUNT=0
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://backend:8000/health > /dev/null 2>&1; then
+    # Try both /health and /docs endpoints
+    if curl -s http://backend:8000/health > /dev/null 2>&1 || curl -s http://backend:8000/docs > /dev/null 2>&1 || curl -s http://backend:8000/ > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Backend is ready!${NC}"
         break
     fi
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
         echo -e "${RED}❌ Backend failed to start after ${MAX_RETRIES} attempts${NC}"
+        echo "Trying to get backend status..."
+        curl -v http://backend:8000/ || true
         exit 1
     fi
     echo "   Attempt $RETRY_COUNT/$MAX_RETRIES..."
