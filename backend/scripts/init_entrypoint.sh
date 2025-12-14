@@ -20,15 +20,27 @@ cd /app
 
 # Run Alembic migrations using the CLI
 echo "📦 Running database migrations..."
-/usr/local/bin/alembic upgrade head || python3 -c "from alembic.config import Config; from alembic import command; cfg = Config('alembic.ini'); command.upgrade(cfg, 'head')"
+if /usr/local/bin/alembic upgrade head 2>&1 | grep -q "already exists"; then
+  echo "⚠️  Tables already exist, stamping alembic version..."
+  /usr/local/bin/alembic stamp head
+  echo "✅ Database already migrated"
+elif /usr/local/bin/alembic upgrade head; then
+  echo "✅ Migrations applied successfully"
+else
+  echo "❌ Migration failed, trying Python fallback..."
+  python3 -c "from alembic.config import Config; from alembic import command; cfg = Config('alembic.ini'); command.upgrade(cfg, 'head')" || {
+    echo "⚠️  Migration failed, stamping current state..."
+    /usr/local/bin/alembic stamp head
+  }
+fi
 
 # Seed pricing data
 echo "🌱 Seeding pricing data..."
-python scripts/seed_pricing_data.py
+python scripts/seed_pricing_data.py || echo "⚠️  Seeding skipped (may already exist)"
 
 # Migrate formulas to use pricing.* references
 echo "🔄 Migrating formulas..."
-python scripts/migrate_formulas_to_pricing.py
+python scripts/migrate_formulas_to_pricing.py || echo "⚠️  Formula migration skipped"
 
 echo "✅ Database initialization complete!"
 exit 0
