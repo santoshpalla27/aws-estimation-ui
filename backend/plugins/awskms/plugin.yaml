@@ -1,0 +1,22 @@
+service_id: awskms
+version: "1.0.0"
+category: Security
+
+metadata:
+  service_id: awskms
+  display_name: AWS KMS
+  description: Managed service for creating and controlling encryption keys
+  category: Security
+  icon_url: ""
+  tags: [encryption, keys, security, compliance]
+
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+
+validation_rules:
+  - field: customer_managed_keys
+    rule: "customer_managed_keys >= 0"
+    message: "Number of keys must be non-negative"
+    severity: error

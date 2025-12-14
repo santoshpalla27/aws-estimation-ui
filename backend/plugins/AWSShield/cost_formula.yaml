@@ -1,0 +1,33 @@
+service: AWSShield
+version: "1.0.0"
+
+inputs:
+  - name: shield_advanced
+    type: boolean
+    required: true
+    default: false
+  - name: protected_resources
+    type: integer
+    required: false
+    default: 0
+
+calculation_steps:
+  - id: shield_cost
+    description: "Shield Advanced cost"
+    formula: |
+      if shield_advanced:
+        3000.00 + (protected_resources * 0)
+      else:
+        0
+    output: shield_cost
+
+total_formula: "shield_cost"
+
+assumptions:
+  - "Shield Standard: Free"
+  - "Shield Advanced: $3,000 per month + data transfer fees"
+
+pricing_sources:
+  - name: "AWS Shield Pricing"
+    url: "https://aws.amazon.com/shield/pricing/"
+    last_updated: "2024-01-01"

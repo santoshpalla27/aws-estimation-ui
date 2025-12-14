@@ -1,0 +1,107 @@
+service: AmazonApiGateway
+version: "1.0.0"
+
+inputs:
+  - name: api_type
+    type: string
+    required: true
+    default: "REST"
+    description: "API type (REST, HTTP, or WebSocket)"
+    
+  - name: requests_per_month
+    type: integer
+    required: true
+    default: 1000000
+    description: "Number of API requests per month"
+    
+  - name: average_message_size_kb
+    type: number
+    required: false
+    default: 32
+    description: "Average message size in KB"
+    
+  - name: enable_caching
+    type: boolean
+    required: false
+    default: false
+    description: "Enable API caching"
+    
+  - name: cache_size_gb
+    type: number
+    required: false
+    default: 0.5
+    description: "Cache size in GB (0.5, 1.6, 6.1, 13.5, 28.4, 58.2, 118, 237)"
+    
+  - name: cache_ttl_hours
+    type: number
+    required: false
+    default: 1
+    description: "Cache TTL in hours"
+
+calculation_steps:
+  - id: api_requests_cost
+    description: "API request cost based on type"
+    formula: |
+      if api_type == 'REST':
+        requests_per_month * 0.0000035
+      elif api_type == 'HTTP':
+        requests_per_month * 0.000001
+      elif api_type == 'WebSocket':
+        (requests_per_month * 0.000001) + (requests_per_month * 0.00000025)
+      else:
+        requests_per_month * 0.0000035
+    output: api_cost
+    
+  - id: cache_cost
+    description: "API Gateway cache cost"
+    formula: |
+      if enable_caching and cache_size_gb > 0:
+        if cache_size_gb <= 0.5:
+          730 * 0.020
+        elif cache_size_gb <= 1.6:
+          730 * 0.038
+        elif cache_size_gb <= 6.1:
+          730 * 0.200
+        elif cache_size_gb <= 13.5:
+          730 * 0.400
+        elif cache_size_gb <= 28.4:
+          730 * 0.800
+        elif cache_size_gb <= 58.2:
+          730 * 1.600
+        elif cache_size_gb <= 118:
+          730 * 3.200
+        else:
+          730 * 6.400
+      else:
+        0
+    output: caching_cost
+    
+  - id: data_transfer_cost
+    description: "Data transfer out cost"
+    formula: |
+      data_out_gb = (requests_per_month * average_message_size_kb) / 1024 / 1024
+      if data_out_gb <= 10240:
+        data_out_gb * 0.09
+      elif data_out_gb <= 51200:
+        (10240 * 0.09) + ((data_out_gb - 10240) * 0.085)
+      elif data_out_gb <= 153600:
+        (10240 * 0.09) + (40960 * 0.085) + ((data_out_gb - 51200) * 0.07)
+      else:
+        (10240 * 0.09) + (40960 * 0.085) + (102400 * 0.07) + ((data_out_gb - 153600) * 0.05)
+    output: transfer_cost
+
+total_formula: "api_cost + caching_cost + transfer_cost"
+
+assumptions:
+  - "REST API: $3.50 per million requests"
+  - "HTTP API: $1.00 per million requests"
+  - "WebSocket API: $1.00 per million connection minutes + $0.25 per million messages"
+  - "Cache pricing varies by size from $0.020/hour (0.5GB) to $6.40/hour (237GB)"
+  - "Data transfer out: $0.09/GB (first 10TB), tiered pricing after"
+  - "First 1 million API calls per month are free (REST/HTTP)"
+  - "Pricing based on us-east-1"
+
+pricing_sources:
+  - name: "Amazon API Gateway Pricing"
+    url: "https://aws.amazon.com/api-gateway/pricing/"
+    last_updated: "2024-01-01"

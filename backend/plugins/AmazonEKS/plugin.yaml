@@ -1,0 +1,27 @@
+service_id: AmazonEKS
+version: "1.0.0"
+category: Compute
+
+metadata:
+  service_id: AmazonEKS
+  display_name: Amazon EKS
+  description: Managed Kubernetes service
+  category: Compute
+  icon_url: ""
+  tags: [kubernetes, containers, orchestration, k8s]
+
+dependencies:
+  mandatory: []
+  conditional:
+    - service: AmazonEC2
+      condition: "node_group_type == 'EC2'"
+      reason: "EC2 instances for worker nodes"
+  implicit:
+    - service: AmazonCloudWatch
+      reason: "Control plane logging"
+
+validation_rules:
+  - field: cluster_count
+    rule: "cluster_count > 0"
+    message: "Must have at least one cluster"
+    severity: error

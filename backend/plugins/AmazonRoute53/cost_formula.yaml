@@ -1,0 +1,50 @@
+service: AmazonRoute53
+version: "1.0.0"
+
+inputs:
+  - name: hosted_zones
+    type: integer
+    required: true
+    default: 1
+    description: "Number of hosted zones"
+  - name: standard_queries_per_month
+    type: integer
+    required: true
+    default: 1000000
+    description: "Standard DNS queries per month"
+  - name: health_checks
+    type: integer
+    required: false
+    default: 0
+    description: "Number of health checks"
+
+calculation_steps:
+  - id: hosted_zone_cost
+    description: "Hosted zone cost"
+    formula: "hosted_zones * 0.50"
+    output: zone_cost
+  - id: query_cost
+    description: "DNS query cost"
+    formula: |
+      if standard_queries_per_month <= 1000000000:
+        standard_queries_per_month * 0.0000004
+      else:
+        (1000000000 * 0.0000004) + ((standard_queries_per_month - 1000000000) * 0.0000002)
+    output: query_cost
+  - id: health_check_cost
+    description: "Health check cost"
+    formula: "health_checks * 0.50"
+    output: health_cost
+
+total_formula: "zone_cost + query_cost + health_cost"
+
+assumptions:
+  - "Hosted zone: $0.50 per month"
+  - "Standard queries: $0.40 per million (first 1B), $0.20 per million (over 1B)"
+  - "Health checks: $0.50 per month each"
+  - "Pricing based on us-east-1"
+
+pricing_sources:
+  - name: "Amazon Route 53 Pricing"
+    url: "https://aws.amazon.com/route53/pricing/"
+    last_updated: "2024-01-01"

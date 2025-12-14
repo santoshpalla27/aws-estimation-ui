@@ -1,0 +1,24 @@
+service_id: AmazonElastiCache
+version: "1.0.0"
+category: Database
+
+metadata:
+  service_id: AmazonElastiCache
+  display_name: Amazon ElastiCache
+  description: Fully managed in-memory caching service (Redis and Memcached)
+  category: Database
+  icon_url: ""
+  tags: [cache, redis, memcached, in-memory]
+
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit:
+    - service: AmazonVPC
+      reason: "ElastiCache runs in VPC"
+
+validation_rules:
+  - field: engine
+    rule: "engine in ['Redis', 'Memcached']"
+    message: "Engine must be Redis or Memcached"
+    severity: error

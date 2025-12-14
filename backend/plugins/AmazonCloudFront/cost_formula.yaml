@@ -1,0 +1,60 @@
+service: AmazonCloudFront
+version: "1.0.0"
+
+inputs:
+  - name: data_transfer_out_gb
+    type: number
+    required: true
+    default: 1000
+    description: "Data transfer out to internet (GB/month)"
+  - name: https_requests_per_month
+    type: integer
+    required: true
+    default: 10000000
+    description: "HTTPS requests per month"
+  - name: invalidation_requests
+    type: integer
+    required: false
+    default: 0
+    description: "Number of invalidation requests"
+
+calculation_steps:
+  - id: data_transfer_cost
+    description: "Data transfer out cost (tiered)"
+    formula: |
+      if data_transfer_out_gb <= 10240:
+        data_transfer_out_gb * 0.085
+      elif data_transfer_out_gb <= 51200:
+        (10240 * 0.085) + ((data_transfer_out_gb - 10240) * 0.080)
+      elif data_transfer_out_gb <= 153600:
+        (10240 * 0.085) + (40960 * 0.080) + ((data_transfer_out_gb - 51200) * 0.060)
+      elif data_transfer_out_gb <= 512000:
+        (10240 * 0.085) + (40960 * 0.080) + (102400 * 0.060) + ((data_transfer_out_gb - 153600) * 0.040)
+      else:
+        (10240 * 0.085) + (40960 * 0.080) + (102400 * 0.060) + (358400 * 0.040) + ((data_transfer_out_gb - 512000) * 0.030)
+    output: transfer_cost
+  - id: request_cost
+    description: "HTTPS request cost"
+    formula: "https_requests_per_month * 0.000001"
+    output: request_cost
+  - id: invalidation_cost
+    description: "Invalidation cost (first 1000 free)"
+    formula: |
+      if invalidation_requests <= 1000:
+        0
+      else:
+        (invalidation_requests - 1000) * 0.005
+    output: invalidation_cost
+
+total_formula: "transfer_cost + request_cost + invalidation_cost"
+
+assumptions:
+  - "Data transfer: $0.085/GB (0-10TB), tiered pricing"
+  - "HTTPS requests: $1.00 per million"
+  - "First 1000 invalidations free, then $0.005 each"
+  - "Pricing based on US/Europe regions"
+
+pricing_sources:
+  - name: "Amazon CloudFront Pricing"
+    url: "https://aws.amazon.com/cloudfront/pricing/"
+    last_updated: "2024-01-01"

@@ -1,0 +1,63 @@
+service: AmazonECS
+version: "1.0.0"
+
+inputs:
+  - name: launch_type
+    type: string
+    required: true
+    default: "Fargate"
+    description: "Launch type (Fargate or EC2)"
+  - name: vcpu_hours_per_month
+    type: number
+    required: true
+    default: 730
+    description: "vCPU hours per month"
+  - name: gb_hours_per_month
+    type: number
+    required: true
+    default: 1460
+    description: "GB memory hours per month"
+  - name: storage_gb
+    type: number
+    required: false
+    default: 20
+    description: "Ephemeral storage (GB)"
+
+calculation_steps:
+  - id: fargate_vcpu_cost
+    description: "Fargate vCPU cost"
+    formula: |
+      if launch_type == 'Fargate':
+        vcpu_hours_per_month * 0.04048
+      else:
+        0
+    output: vcpu_cost
+  - id: fargate_memory_cost
+    description: "Fargate memory cost"
+    formula: |
+      if launch_type == 'Fargate':
+        gb_hours_per_month * 0.004445
+      else:
+        0
+    output: memory_cost
+  - id: storage_cost
+    description: "Ephemeral storage cost"
+    formula: |
+      if launch_type == 'Fargate' and storage_gb > 20:
+        (storage_gb - 20) * 0.000111 * 730
+      else:
+        0
+    output: storage_cost
+
+total_formula: "vcpu_cost + memory_cost + storage_cost"
+
+assumptions:
+  - "Fargate: $0.04048 per vCPU hour, $0.004445 per GB hour"
+  - "20GB ephemeral storage included, $0.000111/GB-hour after"
+  - "EC2 launch type: no ECS charges (pay for EC2 instances)"
+  - "Pricing based on us-east-1"
+
+pricing_sources:
+  - name: "Amazon ECS Pricing"
+    url: "https://aws.amazon.com/ecs/pricing/"
+    last_updated: "2024-01-01"

@@ -1,0 +1,25 @@
+service_id: AWSELB
+version: "1.0.0"
+category: Networking
+
+metadata:
+  service_id: AWSELB
+  display_name: Elastic Load Balancing
+  description: Distribute incoming traffic across multiple targets
+  category: Networking
+  icon_url: ""
+  tags: [load-balancer, nlb, clb, traffic]
+
+dependencies:
+  mandatory: []
+  conditional:
+    - service: AmazonEC2
+      condition: "target_type == 'instance'"
+      reason: "EC2 instances as targets"
+  implicit: []
+
+validation_rules:
+  - field: load_balancer_type
+    rule: "load_balancer_type in ['Network', 'Classic']"
+    message: "Type must be Network or Classic"
+    severity: error

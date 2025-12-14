@@ -1,0 +1,44 @@
+{
+    "type": "object",
+    "properties": {
+        "publish_requests": {
+            "type": "integer",
+            "title": "Publish Requests per Month",
+            "default": 1000000,
+            "minimum": 1,
+            "description": "Number of messages published to SNS topics"
+        },
+        "notification_deliveries": {
+            "type": "integer",
+            "title": "Notification Deliveries per Month",
+            "default": 1000000,
+            "minimum": 1,
+            "description": "Total notifications delivered to subscribers"
+        },
+        "data_transfer_gb": {
+            "type": "number",
+            "title": "Data Transfer Out (GB)",
+            "default": 1,
+            "minimum": 0,
+            "description": "Data transferred out per month"
+        },
+        "sms_messages": {
+            "type": "integer",
+            "title": "SMS Messages",
+            "default": 0,
+            "minimum": 0,
+            "description": "Number of SMS messages sent"
+        },
+        "mobile_push_notifications": {
+            "type": "integer",
+            "title": "Mobile Push Notifications",
+            "default": 0,
+            "minimum": 0,
+            "description": "Push notifications to mobile devices"
+        }
+    },
+    "required": [
+        "publish_requests",
+        "notification_deliveries"
+    ]
+}

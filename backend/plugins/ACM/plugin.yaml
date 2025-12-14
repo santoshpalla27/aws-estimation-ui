@@ -1,0 +1,18 @@
+service_id: ACM
+version: "1.0.0"
+category: Security
+
+metadata:
+  service_id: ACM
+  display_name: AWS Certificate Manager
+  description: Provision and manage SSL/TLS certificates
+  category: Security
+  icon_url: ""
+  tags: [ssl, tls, certificates, https]
+
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+
+validation_rules: []

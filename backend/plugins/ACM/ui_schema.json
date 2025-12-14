@@ -1,0 +1,20 @@
+{
+    "type": "object",
+    "properties": {
+        "public_certificates": {
+            "type": "integer",
+            "title": "Public Certificates",
+            "default": 1,
+            "minimum": 0
+        },
+        "private_certificates": {
+            "type": "integer",
+            "title": "Private Certificates",
+            "default": 0,
+            "minimum": 0
+        }
+    },
+    "required": [
+        "public_certificates"
+    ]
+}

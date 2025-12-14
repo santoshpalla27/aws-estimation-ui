@@ -1,0 +1,42 @@
+service: awswaf
+version: "1.0.0"
+
+inputs:
+  - name: web_acls
+    type: integer
+    required: true
+    default: 1
+  - name: rules_per_acl
+    type: integer
+    required: true
+    default: 5
+  - name: requests_per_month
+    type: integer
+    required: true
+    default: 10000000
+
+calculation_steps:
+  - id: web_acl_cost
+    description: "Web ACL cost"
+    formula: "web_acls * 5.00"
+    output: acl_cost
+  - id: rule_cost
+    description: "Rule cost"
+    formula: "web_acls * rules_per_acl * 1.00"
+    output: rule_cost
+  - id: request_cost
+    description: "Request cost"
+    formula: "requests_per_month * 0.0000006"
+    output: request_cost
+
+total_formula: "acl_cost + rule_cost + request_cost"
+
+assumptions:
+  - "Web ACL: $5.00 per month"
+  - "Rule: $1.00 per month"
+  - "Requests: $0.60 per million"
+
+pricing_sources:
+  - name: "AWS WAF Pricing"
+    url: "https://aws.amazon.com/waf/pricing/"
+    last_updated: "2024-01-01"

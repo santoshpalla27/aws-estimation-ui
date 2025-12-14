@@ -1,0 +1,45 @@
+service: AWSELB
+version: "1.0.0"
+
+inputs:
+  - name: load_balancer_type
+    type: string
+    required: true
+    default: "Network"
+  - name: number_of_lbs
+    type: integer
+    required: true
+    default: 1
+  - name: data_processed_gb
+    type: number
+    required: true
+    default: 1000
+
+calculation_steps:
+  - id: lb_hour_cost
+    description: "Load balancer hour cost"
+    formula: |
+      if load_balancer_type == 'Network':
+        number_of_lbs * 0.0225 * 730
+      else:
+        number_of_lbs * 0.025 * 730
+    output: lb_cost
+  - id: data_cost
+    description: "Data processed cost"
+    formula: |
+      if load_balancer_type == 'Network':
+        data_processed_gb * 0.006
+      else:
+        0
+    output: data_cost
+
+total_formula: "lb_cost + data_cost"
+
+assumptions:
+  - "Network LB: $0.0225/hour + $0.006/GB processed"
+  - "Classic LB: $0.025/hour"
+
+pricing_sources:
+  - name: "Elastic Load Balancing Pricing"
+    url: "https://aws.amazon.com/elasticloadbalancing/pricing/"
+    last_updated: "2024-01-01"

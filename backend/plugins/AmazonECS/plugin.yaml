@@ -1,0 +1,30 @@
+service_id: AmazonECS
+version: "1.0.0"
+category: Compute
+
+metadata:
+  service_id: AmazonECS
+  display_name: Amazon ECS
+  description: Fully managed container orchestration service
+  category: Compute
+  icon_url: ""
+  tags: [containers, docker, orchestration, fargate]
+
+dependencies:
+  mandatory: []
+  conditional:
+    - service: AmazonEC2
+      condition: "launch_type == 'EC2'"
+      reason: "EC2 instances for ECS tasks"
+    - service: AmazonECR
+      condition: "use_ecr == true"
+      reason: "Container registry for images"
+  implicit:
+    - service: AmazonCloudWatch
+      reason: "Container insights and logging"
+
+validation_rules:
+  - field: launch_type
+    rule: "launch_type in ['Fargate', 'EC2']"
+    message: "Launch type must be Fargate or EC2"
+    severity: error

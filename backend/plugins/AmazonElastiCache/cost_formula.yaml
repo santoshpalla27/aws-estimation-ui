@@ -1,0 +1,65 @@
+service: AmazonElastiCache
+version: "1.0.0"
+
+inputs:
+  - name: engine
+    type: string
+    required: true
+    default: "Redis"
+    description: "Cache engine (Redis or Memcached)"
+  - name: node_type
+    type: string
+    required: true
+    default: "cache.t3.micro"
+    description: "Node type"
+  - name: number_of_nodes
+    type: integer
+    required: true
+    default: 1
+    description: "Number of cache nodes"
+  - name: backup_storage_gb
+    type: number
+    required: false
+    default: 0
+    description: "Backup storage in GB (Redis only)"
+
+calculation_steps:
+  - id: node_cost
+    description: "Cache node cost"
+    formula: |
+      if node_type == 'cache.t3.micro':
+        number_of_nodes * 0.017 * 730
+      elif node_type == 'cache.t3.small':
+        number_of_nodes * 0.034 * 730
+      elif node_type == 'cache.t3.medium':
+        number_of_nodes * 0.068 * 730
+      elif node_type == 'cache.m5.large':
+        number_of_nodes * 0.161 * 730
+      elif node_type == 'cache.m5.xlarge':
+        number_of_nodes * 0.322 * 730
+      elif node_type == 'cache.r5.large':
+        number_of_nodes * 0.201 * 730
+      else:
+        number_of_nodes * 0.161 * 730
+    output: node_cost
+  - id: backup_cost
+    description: "Backup storage cost"
+    formula: |
+      if engine == 'Redis':
+        backup_storage_gb * 0.085
+      else:
+        0
+    output: backup_cost
+
+total_formula: "node_cost + backup_cost"
+
+assumptions:
+  - "Node pricing varies by type (t3.micro: $0.017/hr, m5.large: $0.161/hr)"
+  - "Backup storage: $0.085/GB-month (Redis only)"
+  - "Data transfer charged separately"
+  - "Pricing based on us-east-1"
+
+pricing_sources:
+  - name: "Amazon ElastiCache Pricing"
+    url: "https://aws.amazon.com/elasticache/pricing/"
+    last_updated: "2024-01-01"

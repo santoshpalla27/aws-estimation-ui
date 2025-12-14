@@ -1,0 +1,89 @@
+service: AmazonSNS
+version: "1.0.0"
+
+inputs:
+  - name: publish_requests
+    type: integer
+    required: true
+    default: 1000000
+    description: "Number of publish requests per month"
+    
+  - name: notification_deliveries
+    type: integer
+    required: true
+    default: 1000000
+    description: "Number of notification deliveries per month"
+    
+  - name: data_transfer_gb
+    type: number
+    required: false
+    default: 1
+    description: "Data transfer out in GB per month"
+    
+  - name: sms_messages
+    type: integer
+    required: false
+    default: 0
+    description: "Number of SMS messages per month"
+    
+  - name: mobile_push_notifications
+    type: integer
+    required: false
+    default: 0
+    description: "Number of mobile push notifications per month"
+
+calculation_steps:
+  - id: publish_cost
+    description: "Cost for publishing messages"
+    formula: |
+      if publish_requests <= 1000000:
+        0
+      else:
+        (publish_requests - 1000000) * 0.0000005
+    output: publish_cost
+    
+  - id: notification_cost
+    description: "Cost for notification deliveries"
+    formula: |
+      if notification_deliveries <= 1000000:
+        0
+      elif notification_deliveries <= 100000000:
+        (notification_deliveries - 1000000) * 0.0000005
+      else:
+        (99000000 * 0.0000005) + ((notification_deliveries - 100000000) * 0.00000025)
+    output: notification_cost
+    
+  - id: sms_cost
+    description: "SMS message cost (US)"
+    formula: "sms_messages * 0.00645"
+    output: sms_cost
+    
+  - id: push_cost
+    description: "Mobile push notification cost"
+    formula: |
+      if mobile_push_notifications <= 1000000:
+        0
+      else:
+        (mobile_push_notifications - 1000000) * 0.0000005
+    output: push_cost
+    
+  - id: data_transfer_cost
+    description: "Data transfer out cost"
+    formula: "data_transfer_gb * 0.09"
+    output: transfer_cost
+
+total_formula: "publish_cost + notification_cost + sms_cost + push_cost + transfer_cost"
+
+assumptions:
+  - "First 1 million requests free per month"
+  - "Publish requests: $0.50 per million after free tier"
+  - "Notification deliveries: $0.50 per million (1M-100M), $0.25 per million (>100M)"
+  - "SMS: $0.00645 per message (US, varies by country)"
+  - "Mobile push: First 1M free, then $0.50 per million"
+  - "Data transfer: $0.09/GB"
+  - "Pricing based on us-east-1"
+
+pricing_sources:
+  - name: "Amazon SNS Pricing"
+    url: "https://aws.amazon.com/sns/pricing/"
+    last_updated: "2024-01-01"

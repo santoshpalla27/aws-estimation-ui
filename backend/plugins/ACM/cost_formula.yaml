@@ -1,0 +1,33 @@
+service: ACM
+version: "1.0.0"
+
+inputs:
+  - name: public_certificates
+    type: integer
+    required: true
+    default: 1
+  - name: private_certificates
+    type: integer
+    required: false
+    default: 0
+
+calculation_steps:
+  - id: public_cert_cost
+    description: "Public certificate cost"
+    formula: "0"
+    output: public_cost
+  - id: private_cert_cost
+    description: "Private certificate cost (Private CA)"
+    formula: "private_certificates * 0.75"
+    output: private_cost
+
+total_formula: "public_cost + private_cost"
+
+assumptions:
+  - "Public certificates: Free"
+  - "Private certificates: $0.75 per month (requires Private CA)"
+
+pricing_sources:
+  - name: "AWS Certificate Manager Pricing"
+    url: "https://aws.amazon.com/certificate-manager/pricing/"
+    last_updated: "2024-01-01"

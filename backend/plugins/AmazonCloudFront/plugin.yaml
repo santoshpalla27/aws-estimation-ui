@@ -1,0 +1,27 @@
+service_id: AmazonCloudFront
+version: "1.0.0"
+category: Networking
+
+metadata:
+  service_id: AmazonCloudFront
+  display_name: Amazon CloudFront
+  description: Fast content delivery network (CDN) service
+  category: Networking
+  icon_url: ""
+  tags: [cdn, edge, caching, distribution]
+
+dependencies:
+  mandatory: []
+  conditional:
+    - service: AmazonS3
+      condition: "origin_type == 's3'"
+      reason: "S3 bucket as origin"
+  implicit:
+    - service: AWSDataTransfer
+      reason: "Data transfer from CloudFront edge locations"
+
+validation_rules:
+  - field: data_transfer_out_gb
+    rule: "data_transfer_out_gb >= 0"
+    message: "Data transfer must be non-negative"
+    severity: error

@@ -1,0 +1,18 @@
+service_id: AmazonECR
+version: "1.0.0"
+category: Compute
+
+metadata:
+  service_id: AmazonECR
+  display_name: Amazon ECR
+  description: Fully managed Docker container registry
+  category: Compute
+  icon_url: ""
+  tags: [docker, containers, registry, images]
+
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+
+validation_rules: []

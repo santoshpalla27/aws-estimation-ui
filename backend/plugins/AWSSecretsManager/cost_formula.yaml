@@ -1,0 +1,37 @@
+service: AWSSecretsManager
+version: "1.0.0"
+
+inputs:
+  - name: number_of_secrets
+    type: integer
+    required: true
+    default: 10
+    description: "Number of secrets stored"
+  - name: api_calls_per_month
+    type: integer
+    required: true
+    default: 10000
+    description: "Number of API calls per month"
+
+calculation_steps:
+  - id: secret_cost
+    description: "Secret storage cost"
+    formula: "number_of_secrets * 0.40"
+    output: secret_cost
+  - id: api_cost
+    description: "API call cost"
+    formula: "api_calls_per_month * 0.00000500"
+    output: api_cost
+
+total_formula: "secret_cost + api_cost"
+
+assumptions:
+  - "Secret storage: $0.40 per secret per month"
+  - "API calls: $0.05 per 10,000 calls"
+  - "30-day free trial for new secrets"
+  - "Pricing based on us-east-1"
+
+pricing_sources:
+  - name: "AWS Secrets Manager Pricing"
+    url: "https://aws.amazon.com/secrets-manager/pricing/"
+    last_updated: "2024-01-01"

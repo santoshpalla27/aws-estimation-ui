@@ -1,0 +1,19 @@
+{
+    "type": "object",
+    "properties": {
+        "shield_advanced": {
+            "type": "boolean",
+            "title": "Shield Advanced",
+            "default": false
+        },
+        "protected_resources": {
+            "type": "integer",
+            "title": "Protected Resources",
+            "default": 0,
+            "minimum": 0
+        }
+    },
+    "required": [
+        "shield_advanced"
+    ]
+}

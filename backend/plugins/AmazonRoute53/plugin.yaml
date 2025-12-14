@@ -1,0 +1,25 @@
+service_id: AmazonRoute53
+version: "1.0.0"
+category: Networking
+
+metadata:
+  service_id: AmazonRoute53
+  display_name: Amazon Route 53
+  description: Highly available and scalable DNS web service
+  category: Networking
+  icon_url: ""
+  tags: [dns, routing, domain, health-check]
+
+dependencies:
+  mandatory: []
+  conditional:
+    - service: AWSELB
+      condition: "alias_records > 0"
+      reason: "Alias records to load balancers"
+  implicit: []
+
+validation_rules:
+  - field: hosted_zones
+    rule: "hosted_zones > 0"
+    message: "Must have at least one hosted zone"
+    severity: error
