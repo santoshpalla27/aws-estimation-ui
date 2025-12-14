@@ -110,6 +110,25 @@ async def get_estimate(
     return estimate
 
 
+@router.get("", response_model=List[Estimate])
+async def list_estimates(
+    project_id: UUID,
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db)
+):
+    """List all estimates for a project (query parameter version)"""
+    result = await db.execute(
+        select(DBEstimate)
+        .where(DBEstimate.project_id == project_id)
+        .offset(skip)
+        .limit(limit)
+        .order_by(DBEstimate.created_at.desc())
+    )
+    estimates = result.scalars().all()
+    return estimates
+
+
 @router.get("/project/{project_id}", response_model=List[Estimate])
 async def list_project_estimates(
     project_id: UUID,
