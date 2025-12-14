@@ -11,9 +11,11 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.database import Base
-# Import all model modules to register them with Base.metadata
-from models.database import Project, CostEstimate, InfrastructureGraph
-from models.pricing_models import PricingVersion, PricingRate, PricingMetadata, PricingChange
+
+# Import models to register them with Base.metadata
+# Do this AFTER Base is imported to avoid circular imports
+import models.database
+import models.pricing_models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
