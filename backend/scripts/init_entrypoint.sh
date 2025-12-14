@@ -8,7 +8,7 @@ echo "🚀 Starting database initialization..."
 
 # Wait for PostgreSQL to be ready
 echo "⏳ Waiting for PostgreSQL..."
-until pg_isready -h db -p 5432 -U ${POSTGRES_USER:-user}; do
+until pg_isready -h postgres -p 5432 -U ${POSTGRES_USER:-costuser}; do
   echo "PostgreSQL is unavailable - sleeping"
   sleep 2
 done
