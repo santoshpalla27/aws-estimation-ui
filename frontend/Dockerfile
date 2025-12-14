@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 
 # Set API URL for build time
-ARG VITE_API_URL=http://54.172.142.250:8000
+ARG VITE_API_URL=http://54.196.223.229:8000
 ENV VITE_API_URL=$VITE_API_URL
 
 # Build with the environment variable

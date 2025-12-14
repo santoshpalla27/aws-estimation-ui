@@ -30,7 +30,7 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://54.172.142.250}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://54.196.223.229}
       - ENVIRONMENT=production
     depends_on:
       postgres:
