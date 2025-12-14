@@ -22,7 +22,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('source_type', sa.String(50), nullable=False, server_default='aws_pricing_api'),
         sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
-        sa.Column('metadata', postgresql.JSONB(), nullable=True)
+        sa.Column('pricing_metadata', postgresql.JSONB(), nullable=True)  # Renamed from metadata
     )
     op.create_index('idx_pricing_versions_active', 'pricing_versions', ['is_active'])
     

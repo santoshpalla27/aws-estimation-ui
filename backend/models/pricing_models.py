@@ -18,7 +18,7 @@ class PricingVersion(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     source_type = Column(String(50), nullable=False, default="aws_pricing_api")
     is_active = Column(Boolean, default=True, index=True)
-    metadata = Column(JSONB, nullable=True)
+    pricing_metadata = Column(JSONB, nullable=True)  # Renamed from 'metadata' to avoid SQLAlchemy conflict
     
     # Relationships
     rates = relationship("PricingRate", back_populates="version_rel", cascade="all, delete-orphan")
