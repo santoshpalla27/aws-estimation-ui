@@ -155,7 +155,7 @@ class TestErrorHandling:
     def test_invalid_project_id(self):
         """Test accessing non-existent project"""
         response = requests.get(f"{BASE_URL}/api/v1/projects/invalid-uuid-12345")
-        assert response.status_code == 404
+        assert response.status_code == 422  # FastAPI returns 422 for invalid UUID format
     
     def test_invalid_service_type(self):
         """Test estimate with invalid service type"""
