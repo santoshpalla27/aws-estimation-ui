@@ -179,11 +179,17 @@ class CostCalculator:
             import yaml
             formula_yaml = yaml.dump(service_def.cost_formula)
             
-            # Execute formula WITHOUT pricing context (use hardcoded values in formulas)
+            # Load pricing data for the service and region
+            pricing_data = self.plugin_loader.load_pricing_data(
+                service_type,
+                region=node.region
+            )
+            
+            # Execute formula WITH pricing context
             from services.formula_engine import FormulaEngine
             engine = FormulaEngine()
             formula_def = engine.load_formula(formula_yaml)
-            result = engine.execute_formula(formula_def, config)
+            result = engine.execute_formula(formula_def, config, pricing=pricing_data)
             
             # Convert to CostResult
             breakdown_dict = {}

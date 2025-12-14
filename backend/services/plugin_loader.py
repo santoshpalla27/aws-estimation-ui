@@ -141,6 +141,62 @@ class PluginLoader:
         with open(schema_file, 'r') as f:
             return json.load(f)
     
+    def load_pricing_data(self, service_id: str, region: str = "us-east-1") -> Dict[str, Any]:
+        """
+        Load pricing data for a service and region
+        
+        Args:
+            service_id: AWS service ID (e.g., 'AmazonS3')
+            region: AWS region (e.g., 'us-east-1')
+        
+        Returns:
+            Pricing data for the specified region
+        """
+        service_dir = self.plugin_path / service_id
+        pricing_file = service_dir / "pricing_data.yaml"
+        
+        if not pricing_file.exists():
+            self.logger.warning(
+                "pricing_data_not_found",
+                service_id=service_id,
+                file=str(pricing_file)
+            )
+            return {}
+        
+        try:
+            with open(pricing_file, 'r') as f:
+                pricing_data = yaml.safe_load(f)
+            
+            # Extract pricing for specific region
+            regional_pricing = pricing_data.get('pricing', {}).get('regions', {}).get(region, {})
+            
+            # Add constants and free tier if available
+            result = regional_pricing.copy()
+            
+            if 'constants' in pricing_data.get('pricing', {}):
+                result['constants'] = pricing_data['pricing']['constants']
+            
+            if 'free_tier' in pricing_data.get('pricing', {}):
+                result['free_tier'] = pricing_data['pricing']['free_tier']
+            
+            # Add metadata
+            result['_metadata'] = {
+                'last_updated': pricing_data.get('pricing', {}).get('last_updated'),
+                'source': pricing_data.get('pricing', {}).get('source'),
+                'region': region
+            }
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(
+                "failed_to_load_pricing_data",
+                service_id=service_id,
+                region=region,
+                error=str(e)
+            )
+            return {}
+    
     def clear_cache(self):
         """Clear plugin cache (for hot-reloading)"""
         self._cache.clear()

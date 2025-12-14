@@ -1,0 +1,33 @@
+# Pricing Data Template
+# This file defines the pricing structure for AWS services
+# All prices are in USD and represent on-demand pricing
+
+pricing:
+  # Regional pricing data
+  regions:
+    us-east-1:
+      # Service-specific pricing goes here
+      # Example structure shown below
+      
+    us-west-2:
+      # Same structure as us-east-1
+      
+    eu-west-1:
+      # Same structure as us-east-1
+  
+  # Metadata
+  last_updated: "2024-12-15"
+  source: "AWS Pricing API"
+  currency: "USD"
+  pricing_model: "on-demand"
+  
+  # Free tier information (if applicable)
+  free_tier:
+    enabled: false
+    # Free tier details go here
+
+# Notes:
+# - All prices should be verified against official AWS pricing
+# - Update last_updated when prices change
+# - Use consistent units (GB, hours, requests, etc.)
+# - Document any assumptions or special conditions

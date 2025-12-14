@@ -33,9 +33,13 @@ inputs:
 
 calculation_steps:
   - step_id: base_instance_cost
-    formula: (0.096 if instance_type == "t3.micro" else 0.0104 if instance_type == "t3.nano" else 0.192 if instance_type == "t3.small" else 0.384 if instance_type == "t3.medium" else 0.768 if instance_type == "t3.large" else 0.096 if instance_type == "m5.large" else 0.192 if instance_type == "m5.xlarge" else 0.384 if instance_type == "m5.2xlarge" else 0.096) * 730 * instance_count
-    description: "Base EC2 instance cost (on-demand, 24/7, Linux)"
+    formula: pricing.instances[instance_type] * pricing.constants.hours_per_month * instance_count * pricing.operating_system_multiplier[operating_system]
+    description: "Base EC2 instance cost (on-demand, 24/7)"
     unit: USD
+    pricing_keys:
+      - instances
+      - constants.hours_per_month
+      - operating_system_multiplier
   
   - step_id: ebs_storage_cost
     formula: 0
@@ -43,9 +47,20 @@ calculation_steps:
     unit: USD
   
   - step_id: data_transfer_out
-    formula: (estimated_monthly_egress_gb - 100) * 0.09 if estimated_monthly_egress_gb > 100 else 0
-    description: "Data transfer out cost (first 100GB free)"
+    formula: >
+      0 if estimated_monthly_egress_gb <= pricing.data_transfer.free_tier_gb else
+      (estimated_monthly_egress_gb - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb if estimated_monthly_egress_gb <= 10240 else
+      (10240 - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb + (estimated_monthly_egress_gb - 10240) * pricing.data_transfer.tier_2_per_gb if estimated_monthly_egress_gb <= 51200 else
+      (10240 - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb + (51200 - 10240) * pricing.data_transfer.tier_2_per_gb + (estimated_monthly_egress_gb - 51200) * pricing.data_transfer.tier_3_per_gb if estimated_monthly_egress_gb <= 153600 else
+      (10240 - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb + (51200 - 10240) * pricing.data_transfer.tier_2_per_gb + (153600 - 51200) * pricing.data_transfer.tier_3_per_gb + (estimated_monthly_egress_gb - 153600) * pricing.data_transfer.tier_4_per_gb
+    description: "Data transfer out cost (tiered pricing, first 100GB free)"
     unit: USD
+    pricing_keys:
+      - data_transfer.free_tier_gb
+      - data_transfer.tier_1_per_gb
+      - data_transfer.tier_2_per_gb
+      - data_transfer.tier_3_per_gb
+      - data_transfer.tier_4_per_gb
 
 total_formula: base_instance_cost + ebs_storage_cost + data_transfer_out
 
@@ -53,3 +68,5 @@ assumptions:
   - "730 hours per month (24/7 operation)"
   - "On-demand pricing (no Reserved Instances or Savings Plans)"
   - "Data transfer within same region unless CloudFront is used"
+  - "Instance pricing varies by region"
+  - "Operating system affects pricing (Windows ~40% more expensive)"

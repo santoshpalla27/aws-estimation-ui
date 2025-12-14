@@ -1,65 +1,98 @@
-service: AmazonS3
-version: "2024.12"
-last_updated: "2024-12-01"
-source: "https://aws.amazon.com/s3/pricing/"
+# Amazon S3 Pricing Data
+# Source: https://aws.amazon.com/s3/pricing/
+# Last Updated: 2024-12-15
 
-regions:
-  us-east-1:
-    storage_standard_gb_month: 0.023
-    storage_ia_gb_month: 0.0125
-    storage_glacier_gb_month: 0.004
-    put_request_per_1000: 0.005
-    get_request_per_1000: 0.0004
-    data_transfer_out_gb: 0.09
-    free_tier:
-      storage_gb: 5
-      put_requests: 2000
-      get_requests: 20000
+pricing:
+  regions:
+    us-east-1:
+      storage:
+        standard: 0.023              # per GB/month
+        intelligent_tiering: 0.0125  # per GB/month (frequent access)
+        standard_ia: 0.0125          # per GB/month
+        onezone_ia: 0.01             # per GB/month
+        glacier_instant: 0.004       # per GB/month
+        glacier_flexible: 0.0036     # per GB/month
+        glacier_deep_archive: 0.00099 # per GB/month
+      
+      requests:
+        put_per_1000: 0.005          # PUT, COPY, POST, LIST per 1,000
+        get_per_1000: 0.0004         # GET, SELECT per 1,000
+        lifecycle_per_1000: 0.0025   # Lifecycle transitions per 1,000
+      
+      data_transfer:
+        # Internet data transfer OUT from Amazon S3 to Internet
+        tier_1_per_gb: 0.09          # First 10 TB / month
+        tier_2_per_gb: 0.085         # Next 40 TB / month
+        tier_3_per_gb: 0.07          # Next 100 TB / month
+        tier_4_per_gb: 0.05          # Over 150 TB / month
+        
+        # Data transfer IN is free
+        ingress_per_gb: 0.0
+        
+        # First 100 GB/month OUT is free
+        free_tier_gb: 100
+    
+    us-west-2:
+      storage:
+        standard: 0.023
+        intelligent_tiering: 0.0125
+        standard_ia: 0.0125
+        onezone_ia: 0.01
+        glacier_instant: 0.004
+        glacier_flexible: 0.0036
+        glacier_deep_archive: 0.00099
+      
+      requests:
+        put_per_1000: 0.005
+        get_per_1000: 0.0004
+        lifecycle_per_1000: 0.0025
+      
+      data_transfer:
+        tier_1_per_gb: 0.09
+        tier_2_per_gb: 0.085
+        tier_3_per_gb: 0.07
+        tier_4_per_gb: 0.05
+        ingress_per_gb: 0.0
+        free_tier_gb: 100
+    
+    eu-west-1:
+      storage:
+        standard: 0.024              # Slightly higher in EU
+        intelligent_tiering: 0.0133
+        standard_ia: 0.0133
+        onezone_ia: 0.0106
+        glacier_instant: 0.0043
+        glacier_flexible: 0.0038
+        glacier_deep_archive: 0.00099
+      
+      requests:
+        put_per_1000: 0.0055
+        get_per_1000: 0.00044
+        lifecycle_per_1000: 0.0028
+      
+      data_transfer:
+        tier_1_per_gb: 0.09
+        tier_2_per_gb: 0.085
+        tier_3_per_gb: 0.07
+        tier_4_per_gb: 0.05
+        ingress_per_gb: 0.0
+        free_tier_gb: 100
   
-  us-west-2:
-    storage_standard_gb_month: 0.023
-    storage_ia_gb_month: 0.0125
-    storage_glacier_gb_month: 0.004
-    put_request_per_1000: 0.005
-    get_request_per_1000: 0.0004
-    data_transfer_out_gb: 0.09
-    free_tier:
-      storage_gb: 5
-      put_requests: 2000
-      get_requests: 20000
+  last_updated: "2024-12-15"
+  source: "AWS S3 Pricing Page"
+  currency: "USD"
+  pricing_model: "on-demand"
   
-  eu-west-1:
-    storage_standard_gb_month: 0.024
-    storage_ia_gb_month: 0.013
-    storage_glacier_gb_month: 0.0042
-    put_request_per_1000: 0.0052
-    get_request_per_1000: 0.00042
-    data_transfer_out_gb: 0.09
-    free_tier:
-      storage_gb: 5
-      put_requests: 2000
-      get_requests: 20000
-  
-  ap-south-1:
-    storage_standard_gb_month: 0.025
-    storage_ia_gb_month: 0.014
-    storage_glacier_gb_month: 0.0045
-    put_request_per_1000: 0.0055
-    get_request_per_1000: 0.00044
-    data_transfer_out_gb: 0.109
-    free_tier:
-      storage_gb: 5
-      put_requests: 2000
-      get_requests: 20000
-  
-  ap-southeast-1:
-    storage_standard_gb_month: 0.025
-    storage_ia_gb_month: 0.014
-    storage_glacier_gb_month: 0.0045
-    put_request_per_1000: 0.0055
-    get_request_per_1000: 0.00044
-    data_transfer_out_gb: 0.12
-    free_tier:
-      storage_gb: 5
-      put_requests: 2000
-      get_requests: 20000
+  free_tier:
+    enabled: true
+    storage_gb: 5                    # 5 GB Standard storage (12 months)
+    put_requests: 2000               # 2,000 PUT requests (12 months)
+    get_requests: 20000              # 20,000 GET requests (12 months)
+    data_transfer_out_gb: 100        # 100 GB/month (always free)
+
+assumptions:
+  - "Prices are for US East (N. Virginia) region unless specified"
+  - "On-demand pricing without Reserved Capacity"
+  - "Data transfer pricing applies to Internet egress"
+  - "Cross-region replication costs not included"
+  - "S3 Transfer Acceleration costs not included"

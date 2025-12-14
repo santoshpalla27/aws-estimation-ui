@@ -1,70 +1,144 @@
-service: AmazonEC2
-version: "2024.12"
-last_updated: "2024-12-01"
-source: "https://aws.amazon.com/ec2/pricing/"
+# Amazon EC2 Pricing Data
+# Source: https://aws.amazon.com/ec2/pricing/on-demand/
+# Last Updated: 2024-12-15
 
-regions:
-  us-east-1:
-    t3_micro_hour: 0.0104
-    t3_small_hour: 0.0208
-    t3_medium_hour: 0.0416
-    t3_large_hour: 0.0832
-    m5_large_hour: 0.096
-    m5_xlarge_hour: 0.192
-    m5_2xlarge_hour: 0.384
-    ebs_gp3_gb_month: 0.08
-    ebs_io2_gb_month: 0.125
-    ebs_io2_iops_month: 0.065
-    data_transfer_out_gb: 0.09
+pricing:
+  regions:
+    us-east-1:
+      instances:
+        # T3 instances (Burstable)
+        "t3.nano": 0.0052            # per hour
+        "t3.micro": 0.0104           # per hour
+        "t3.small": 0.0208           # per hour
+        "t3.medium": 0.0416          # per hour
+        "t3.large": 0.0832           # per hour
+        "t3.xlarge": 0.1664          # per hour
+        "t3.2xlarge": 0.3328         # per hour
+        
+        # M5 instances (General Purpose)
+        "m5.large": 0.096            # per hour
+        "m5.xlarge": 0.192           # per hour
+        "m5.2xlarge": 0.384          # per hour
+        "m5.4xlarge": 0.768          # per hour
+        
+        # C5 instances (Compute Optimized)
+        "c5.large": 0.085            # per hour
+        "c5.xlarge": 0.17            # per hour
+        "c5.2xlarge": 0.34           # per hour
+        
+        # R5 instances (Memory Optimized)
+        "r5.large": 0.126            # per hour
+        "r5.xlarge": 0.252           # per hour
+        "r5.2xlarge": 0.504          # per hour
+      
+      operating_system_multiplier:
+        Linux: 1.0
+        Windows: 1.4                 # ~40% more expensive
+        RHEL: 1.15                   # ~15% more expensive
+        SUSE: 1.12                   # ~12% more expensive
+      
+      data_transfer:
+        # Data transfer OUT to Internet
+        tier_1_per_gb: 0.09          # First 10 TB / month
+        tier_2_per_gb: 0.085         # Next 40 TB / month
+        tier_3_per_gb: 0.07          # Next 100 TB / month
+        tier_4_per_gb: 0.05          # Over 150 TB / month
+        
+        # Data transfer IN is free
+        ingress_per_gb: 0.0
+        
+        # First 100 GB/month OUT is free
+        free_tier_gb: 100
+        
+        # Cross-AZ data transfer
+        cross_az_per_gb: 0.01        # $0.01/GB in each direction
+    
+    us-west-2:
+      instances:
+        "t3.nano": 0.0052
+        "t3.micro": 0.0104
+        "t3.small": 0.0208
+        "t3.medium": 0.0416
+        "t3.large": 0.0832
+        "t3.xlarge": 0.1664
+        "t3.2xlarge": 0.3328
+        "m5.large": 0.096
+        "m5.xlarge": 0.192
+        "m5.2xlarge": 0.384
+        "m5.4xlarge": 0.768
+        "c5.large": 0.085
+        "c5.xlarge": 0.17
+        "c5.2xlarge": 0.34
+        "r5.large": 0.126
+        "r5.xlarge": 0.252
+        "r5.2xlarge": 0.504
+      
+      operating_system_multiplier:
+        Linux: 1.0
+        Windows: 1.4
+        RHEL: 1.15
+        SUSE: 1.12
+      
+      data_transfer:
+        tier_1_per_gb: 0.09
+        tier_2_per_gb: 0.085
+        tier_3_per_gb: 0.07
+        tier_4_per_gb: 0.05
+        ingress_per_gb: 0.0
+        free_tier_gb: 100
+        cross_az_per_gb: 0.01
+    
+    eu-west-1:
+      instances:
+        "t3.nano": 0.0058            # Slightly higher in EU
+        "t3.micro": 0.0116
+        "t3.small": 0.0232
+        "t3.medium": 0.0464
+        "t3.large": 0.0928
+        "t3.xlarge": 0.1856
+        "t3.2xlarge": 0.3712
+        "m5.large": 0.107
+        "m5.xlarge": 0.214
+        "m5.2xlarge": 0.428
+        "m5.4xlarge": 0.856
+        "c5.large": 0.095
+        "c5.xlarge": 0.19
+        "c5.2xlarge": 0.38
+        "r5.large": 0.141
+        "r5.xlarge": 0.282
+        "r5.2xlarge": 0.564
+      
+      operating_system_multiplier:
+        Linux: 1.0
+        Windows: 1.4
+        RHEL: 1.15
+        SUSE: 1.12
+      
+      data_transfer:
+        tier_1_per_gb: 0.09
+        tier_2_per_gb: 0.085
+        tier_3_per_gb: 0.07
+        tier_4_per_gb: 0.05
+        ingress_per_gb: 0.0
+        free_tier_gb: 100
+        cross_az_per_gb: 0.01
   
-  us-west-2:
-    t3_micro_hour: 0.0104
-    t3_small_hour: 0.0208
-    t3_medium_hour: 0.0416
-    t3_large_hour: 0.0832
-    m5_large_hour: 0.096
-    m5_xlarge_hour: 0.192
-    m5_2xlarge_hour: 0.384
-    ebs_gp3_gb_month: 0.08
-    ebs_io2_gb_month: 0.125
-    ebs_io2_iops_month: 0.065
-    data_transfer_out_gb: 0.09
+  last_updated: "2024-12-15"
+  source: "AWS EC2 Pricing Page"
+  currency: "USD"
+  pricing_model: "on-demand"
   
-  eu-west-1:
-    t3_micro_hour: 0.0114
-    t3_small_hour: 0.0229
-    t3_medium_hour: 0.0458
-    t3_large_hour: 0.0915
-    m5_large_hour: 0.107
-    m5_xlarge_hour: 0.214
-    m5_2xlarge_hour: 0.428
-    ebs_gp3_gb_month: 0.089
-    ebs_io2_gb_month: 0.138
-    ebs_io2_iops_month: 0.072
-    data_transfer_out_gb: 0.09
+  constants:
+    hours_per_month: 730            # 24 * 30.42 (average days/month)
   
-  ap-south-1:
-    t3_micro_hour: 0.0093
-    t3_small_hour: 0.0187
-    t3_medium_hour: 0.0374
-    t3_large_hour: 0.0749
-    m5_large_hour: 0.086
-    m5_xlarge_hour: 0.172
-    m5_2xlarge_hour: 0.344
-    ebs_gp3_gb_month: 0.072
-    ebs_io2_gb_month: 0.113
-    ebs_io2_iops_month: 0.059
-    data_transfer_out_gb: 0.109
-  
-  ap-southeast-1:
-    t3_micro_hour: 0.0116
-    t3_small_hour: 0.0232
-    t3_medium_hour: 0.0464
-    t3_large_hour: 0.0928
-    m5_large_hour: 0.107
-    m5_xlarge_hour: 0.214
-    m5_2xlarge_hour: 0.428
-    ebs_gp3_gb_month: 0.089
-    ebs_io2_gb_month: 0.138
-    ebs_io2_iops_month: 0.072
-    data_transfer_out_gb: 0.12
+  free_tier:
+    enabled: true
+    hours_per_month: 750            # 750 hours of t2.micro or t3.micro (12 months)
+    instance_types: ["t2.micro", "t3.micro"]
+
+assumptions:
+  - "On-demand pricing without Reserved Instances or Savings Plans"
+  - "730 hours per month (24/7 operation)"
+  - "EBS volumes priced separately"
+  - "Data transfer within same region is free (except cross-AZ)"
+  - "Elastic IP addresses have separate charges if not attached"

@@ -36,29 +36,40 @@ calculation_steps:
     output: compute_gb_seconds
     
   - id: billable_gb_seconds
-    description: "Compute GB-seconds after free tier (400,000 GB-seconds free)"
-    formula: compute_gb_seconds - 400000 if compute_gb_seconds > 400000 else 0
+    description: "Compute GB-seconds after free tier"
+    formula: compute_gb_seconds - pricing.free_tier.compute_gb_seconds if compute_gb_seconds > pricing.free_tier.compute_gb_seconds else 0
     output: billable_compute
+    pricing_keys:
+      - free_tier.compute_gb_seconds
     
   - id: compute_cost
-    description: "Cost for compute time ($0.0000166667 per GB-second)"
-    formula: billable_compute * 0.0000166667
+    description: "Cost for compute time with architecture multiplier"
+    formula: billable_compute * pricing.compute.gb_second * pricing.architecture_multiplier[architecture]
     output: compute_cost
+    pricing_keys:
+      - compute.gb_second
+      - architecture_multiplier
     
   - id: billable_requests
-    description: "Requests after free tier (1M requests free)"
-    formula: monthly_invocations - 1000000 if monthly_invocations > 1000000 else 0
+    description: "Requests after free tier"
+    formula: monthly_invocations - pricing.free_tier.requests if monthly_invocations > pricing.free_tier.requests else 0
     output: billable_requests
+    pricing_keys:
+      - free_tier.requests
     
   - id: request_cost
-    description: "Cost for requests ($0.20 per 1M requests)"
-    formula: (billable_requests / 1000000) * 0.20
+    description: "Cost for requests"
+    formula: (billable_requests / 1000000) * pricing.requests.per_million
     output: request_cost
+    pricing_keys:
+      - requests.per_million
     
   - id: ephemeral_storage_cost
     description: "Cost for additional ephemeral storage"
-    formula: ((ephemeral_storage_mb - 512) / 1024) * compute_gb_seconds * 0.0000000309 if ephemeral_storage_mb > 512 else 0
+    formula: ((ephemeral_storage_mb - 512) / 1024) * compute_gb_seconds * pricing.ephemeral_storage.per_gb_second if ephemeral_storage_mb > 512 else 0
     output: storage_cost
+    pricing_keys:
+      - ephemeral_storage.per_gb_second
 
 total_formula: compute_cost + request_cost + storage_cost
 
@@ -67,9 +78,9 @@ assumptions:
   - "No provisioned concurrency configured"
   - "Standard Lambda pricing (not Lambda@Edge)"
   - "Average duration used for all invocations"
-  - "x86_64 architecture pricing (arm64 is 20% cheaper)"
+  - "arm64 architecture is 20% cheaper than x86_64"
 
 pricing_sources:
   - name: "AWS Lambda Pricing"
     url: "https://aws.amazon.com/lambda/pricing/"
-    last_updated: "2024-01-01"
+    last_updated: "2024-12-15"

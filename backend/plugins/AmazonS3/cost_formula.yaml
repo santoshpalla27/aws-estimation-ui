@@ -31,39 +31,67 @@ inputs:
 calculation_steps:
   - id: storage_cost
     description: "Storage cost based on storage class"
-    formula: storage_gb * (0.023 if storage_class == "STANDARD" else 0.023 if storage_class == "INTELLIGENT_TIERING" else 0.0125 if storage_class == "STANDARD_IA" else 0.01 if storage_class == "ONEZONE_IA" else 0.004 if storage_class == "GLACIER_INSTANT" else 0.0036 if storage_class == "GLACIER_FLEXIBLE" else 0.00099 if storage_class == "GLACIER_DEEP_ARCHIVE" else 0.023)
+    formula: >
+      storage_gb * (
+        pricing.storage.standard if storage_class == "STANDARD" else
+        pricing.storage.intelligent_tiering if storage_class == "INTELLIGENT_TIERING" else
+        pricing.storage.standard_ia if storage_class == "STANDARD_IA" else
+        pricing.storage.onezone_ia if storage_class == "ONEZONE_IA" else
+        pricing.storage.glacier_instant if storage_class == "GLACIER_INSTANT" else
+        pricing.storage.glacier_flexible if storage_class == "GLACIER_FLEXIBLE" else
+        pricing.storage.glacier_deep_archive if storage_class == "GLACIER_DEEP_ARCHIVE" else
+        pricing.storage.standard
+      )
     output: storage_cost
+    pricing_keys:
+      - storage.standard
+      - storage.intelligent_tiering
+      - storage.standard_ia
+      - storage.onezone_ia
+      - storage.glacier_instant
+      - storage.glacier_flexible
+      - storage.glacier_deep_archive
     
   - id: put_request_cost
-    description: "PUT/POST request costs ($0.005 per 1,000 PUT requests)"
-    formula: (put_requests_per_month / 1000) * 0.005
+    description: "PUT/POST request costs"
+    formula: (put_requests_per_month / 1000) * pricing.requests.put_per_1000
     output: put_cost
+    pricing_keys:
+      - requests.put_per_1000
     
   - id: get_request_cost
-    description: "GET request costs ($0.0004 per 1,000 GET requests)"
-    formula: (get_requests_per_month / 1000) * 0.0004
+    description: "GET request costs"
+    formula: (get_requests_per_month / 1000) * pricing.requests.get_per_1000
     output: get_cost
+    pricing_keys:
+      - requests.get_per_1000
     
   - id: data_transfer_cost
-    description: "Data transfer out to internet (tiered pricing, first 10GB free)"
-    formula: 0 if data_transfer_gb <= 10 else (data_transfer_gb - 10) * 0.09 if data_transfer_gb <= 10000 else (10000 - 10) * 0.09 + (data_transfer_gb - 10000) * 0.085 if data_transfer_gb <= 50000 else (10000 - 10) * 0.09 + (50000 - 10000) * 0.085 + (data_transfer_gb - 50000) * 0.07
+    description: "Data transfer out to internet (tiered pricing)"
+    formula: >
+      0 if data_transfer_gb <= pricing.data_transfer.free_tier_gb else
+      (data_transfer_gb - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb if data_transfer_gb <= 10240 else
+      (10240 - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb + (data_transfer_gb - 10240) * pricing.data_transfer.tier_2_per_gb if data_transfer_gb <= 51200 else
+      (10240 - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb + (51200 - 10240) * pricing.data_transfer.tier_2_per_gb + (data_transfer_gb - 51200) * pricing.data_transfer.tier_3_per_gb if data_transfer_gb <= 153600 else
+      (10240 - pricing.data_transfer.free_tier_gb) * pricing.data_transfer.tier_1_per_gb + (51200 - 10240) * pricing.data_transfer.tier_2_per_gb + (153600 - 51200) * pricing.data_transfer.tier_3_per_gb + (data_transfer_gb - 153600) * pricing.data_transfer.tier_4_per_gb
     output: transfer_cost
-    
-  - id: intelligent_tiering_monitoring
-    description: "Monitoring cost for Intelligent-Tiering ($0.0025 per 1,000 objects)"
-    formula: ((storage_gb * 100) / 1000) * 0.0025 if storage_class == "INTELLIGENT_TIERING" else 0
-    output: monitoring_cost
+    pricing_keys:
+      - data_transfer.free_tier_gb
+      - data_transfer.tier_1_per_gb
+      - data_transfer.tier_2_per_gb
+      - data_transfer.tier_3_per_gb
+      - data_transfer.tier_4_per_gb
 
-total_formula: "storage_cost + put_cost + get_cost + transfer_cost + monitoring_cost"
+total_formula: storage_cost + put_cost + get_cost + transfer_cost
 
 assumptions:
-  - "Pricing based on us-east-1 region"
-  - "First 10 GB of data transfer out is free per month"
-  - "Estimated 100 objects per GB for Intelligent-Tiering monitoring"
-  - "No retrieval costs for Glacier classes"
-  - "No cross-region replication costs"
+  - "Storage class pricing varies by region"
+  - "First 100 GB/month data transfer OUT is free"
+  - "Data transfer IN is always free"
+  - "Tiered pricing applies to data transfer OUT"
+  - "Cross-region replication costs not included"
 
 pricing_sources:
-  - name: "Amazon S3 Pricing"
+  - name: "AWS S3 Pricing"
     url: "https://aws.amazon.com/s3/pricing/"
-    last_updated: "2024-01-01"
+    last_updated: "2024-12-15"
