@@ -2,20 +2,18 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy import MetaData
 
 from alembic import context
 
-# Import your models here
+# Import Base but don't import models to avoid duplicate registration
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from core.database import Base
-
-# Import models to register them with Base.metadata
-# Do this AFTER Base is imported to avoid circular imports
-import models.database
-import models.pricing_models
+# Create a fresh metadata instance for alembic
+# This avoids conflicts with models that may already be registered
+target_metadata = MetaData()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,10 +23,6 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
