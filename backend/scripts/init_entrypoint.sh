@@ -34,13 +34,6 @@ else
   }
 fi
 
-# Seed pricing data
-echo "🌱 Seeding pricing data..."
-python scripts/seed_pricing_data.py || echo "⚠️  Seeding skipped (may already exist)"
-
-# Migrate formulas to use pricing.* references
-echo "🔄 Migrating formulas..."
-python scripts/migrate_formulas_to_pricing.py || echo "⚠️  Formula migration skipped"
-
 echo "✅ Database initialization complete!"
+echo "📝 Note: Pricing data seeding should be done manually after deployment"
 exit 0
