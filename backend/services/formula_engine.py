@@ -62,21 +62,33 @@ class FormulaEngine:
     def execute_formula(
         self,
         formula_def: FormulaDefinition,
-        config: Dict[str, Any]
+        config: Dict[str, Any],
+        pricing: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
-        Execute formula with given configuration
+        Execute formula with given configuration and pricing data
+        
+        Args:
+            formula_def: Parsed formula definition
+            config: User configuration
+            pricing: Pricing data for the service/region
         
         Returns:
             {
                 'total_cost': float,
                 'breakdown': {step_id: cost_value},
                 'assumptions': List[str],
-                'confidence': float
+                'confidence': float,
+                'pricing_metadata': Dict (if pricing provided)
             }
         """
         # Initialize context with input config
         self.context = config.copy()
+        
+        # Inject pricing into context if provided
+        if pricing:
+            self.context['pricing'] = pricing
+        
         breakdown = {}
         
         # Execute each calculation step
@@ -101,13 +113,19 @@ class FormulaEngine:
         # Calculate confidence score (simple heuristic)
         confidence = self._calculate_confidence(config, formula_def.inputs)
         
-        return {
+        result = {
             'total_cost': round(total_cost, 2),
             'breakdown': breakdown,
             'assumptions': formula_def.assumptions,
             'confidence': confidence,
             'service': formula_def.service
         }
+        
+        # Add pricing metadata if available
+        if pricing and '_metadata' in pricing:
+            result['pricing_metadata'] = pricing['_metadata']
+        
+        return result
     
     def _evaluate_expression(self, formula: str) -> float:
         """

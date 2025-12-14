@@ -45,6 +45,10 @@ class CostCalculator:
     def __init__(self):
         self.logger = logger.bind(component="cost_calculator")
         self.plugin_loader = PluginLoader()
+        
+        # Initialize pricing loader
+        from services.pricing_loader import PricingLoader
+        self.pricing_loader = PricingLoader()
     
     async def calculate_estimate(
         self,
@@ -174,27 +178,41 @@ class CostCalculator:
                     if prop_name not in config and 'default' in prop_def:
                         config[prop_name] = prop_def['default']
             
+            # Load pricing data for service/region
+            pricing_data = await self.pricing_loader.get_pricing(
+                service_id=service_type,
+                region=node.region
+            )
+            
             # Convert cost_formula dict to YAML string for FormulaEngine
             import yaml
             formula_yaml = yaml.dump(service_def.cost_formula)
             
-            # Execute formula
+            # Execute formula with pricing context
             from services.formula_engine import FormulaEngine
             engine = FormulaEngine()
             formula_def = engine.load_formula(formula_yaml)
-            result = engine.execute_formula(formula_def, config)
+            result = engine.execute_formula(formula_def, config, pricing=pricing_data)
             
             # Convert to CostResult
             breakdown_dict = {}
             for step_id, step_data in result['breakdown'].items():
                 breakdown_dict[step_id] = Decimal(str(step_data['value']))
             
+            # Collect assumptions (include pricing metadata if available)
+            assumptions = result.get('assumptions', [])
+            if pricing_data and '_metadata' in pricing_data:
+                metadata = pricing_data['_metadata']
+                assumptions.append(
+                    f"Pricing: {metadata['version']} (updated {metadata['last_updated']})"
+                )
+            
             return CostResult(
                 node_id=node.id,
                 service_type=service_type,
                 total_monthly_cost=Decimal(str(result['total_cost'])),
                 breakdown=breakdown_dict,
-                assumptions=result.get('assumptions', []),
+                assumptions=assumptions,
                 warnings=[]
             )
             

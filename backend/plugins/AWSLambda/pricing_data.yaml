@@ -1,0 +1,44 @@
+service: AWSLambda
+version: "2024.12"
+last_updated: "2024-12-01"
+source: "https://aws.amazon.com/lambda/pricing/"
+
+regions:
+  us-east-1:
+    gb_second: 0.0000166667
+    request: 0.0000002
+    free_tier:
+      gb_seconds: 400000
+      requests: 1000000
+  
+  us-west-2:
+    gb_second: 0.0000166667
+    request: 0.0000002
+    free_tier:
+      gb_seconds: 400000
+      requests: 1000000
+  
+  eu-west-1:
+    gb_second: 0.0000166667
+    request: 0.0000002
+    free_tier:
+      gb_seconds: 400000
+      requests: 1000000
+  
+  ap-south-1:
+    gb_second: 0.000018
+    request: 0.00000022
+    free_tier:
+      gb_seconds: 400000
+      requests: 1000000
+  
+  ap-southeast-1:
+    gb_second: 0.0000175
+    request: 0.00000021
+    free_tier:
+      gb_seconds: 400000
+      requests: 1000000
+
+architecture_multipliers:
+  x86_64: 1.0
+  arm64: 0.8  # 20% cheaper for Graviton2
