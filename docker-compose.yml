@@ -101,8 +101,28 @@ services:
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+
+  # Integration Tests - Automated Testing Container
+  tests:
+    build:
+      context: .
+      dockerfile: backend/tests/Dockerfile
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: "no" # Run once and exit
+    profiles:
+      - test # Only run when explicitly requested
 
 networks:
   app-network:

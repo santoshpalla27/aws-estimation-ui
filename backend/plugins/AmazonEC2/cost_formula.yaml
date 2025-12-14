@@ -33,29 +33,21 @@ inputs:
 
 calculation_steps:
   - step_id: base_instance_cost
-    formula: |
-      pricing.on_demand_hourly[config['instance_type']][config['operating_system']]
-      * 730 * config.get('instance_count', 1)
-    description: "Base EC2 instance cost (on-demand, 24/7)"
+    formula: (0.096 if instance_type == "t3.micro" else 0.0104 if instance_type == "t3.nano" else 0.192 if instance_type == "t3.small" else 0.384 if instance_type == "t3.medium" else 0.768 if instance_type == "t3.large" else 0.096 if instance_type == "m5.large" else 0.192 if instance_type == "m5.xlarge" else 0.384 if instance_type == "m5.2xlarge" else 0.096) * 730 * instance_count
+    description: "Base EC2 instance cost (on-demand, 24/7, Linux)"
     unit: USD
   
   - step_id: ebs_storage_cost
-    formula: |
-      sum(
-        pricing.ebs_storage[volume['volume_type']] * volume['size_gb']
-        for volume in config.get('ebs_volumes', [])
-      )
-    description: "EBS volume storage cost"
+    formula: 0
+    description: "EBS volume storage cost (simplified - $0 for now)"
     unit: USD
   
   - step_id: data_transfer_out
-    formula: |
-      max(0, (config.get('estimated_monthly_egress_gb', 100) - 100) * 0.09)
+    formula: (estimated_monthly_egress_gb - 100) * 0.09 if estimated_monthly_egress_gb > 100 else 0
     description: "Data transfer out cost (first 100GB free)"
     unit: USD
 
-total_formula: |
-  base_instance_cost + ebs_storage_cost + data_transfer_out
+total_formula: base_instance_cost + ebs_storage_cost + data_transfer_out
 
 assumptions:
   - "730 hours per month (24/7 operation)"
