@@ -15,12 +15,12 @@ done
 
 echo "✅ PostgreSQL is ready!"
 
-# Change to backend directory
-cd /app/backend
+# Change to app directory (where backend code is)
+cd /app
 
 # Run Alembic migrations
 echo "📦 Running database migrations..."
-alembic upgrade head
+python -m alembic upgrade head
 
 # Seed pricing data
 echo "🌱 Seeding pricing data..."
