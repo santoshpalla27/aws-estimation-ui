@@ -11,7 +11,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
-from models.pricing import PricingRate, PricingVersion
+from models.pricing_models import PricingRate, PricingVersion
 
 logger = structlog.get_logger()
 
