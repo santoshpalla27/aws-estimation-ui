@@ -8,8 +8,9 @@ from decimal import Decimal
 from dataclasses import dataclass, field
 import structlog
 
-from services.graph_engine import InfrastructureGraph
+from services.graph_engine import GraphEngine
 from services.plugin_loader import PluginLoader
+from services.formula_engine import FormulaEngine
 from models.schemas import ServiceNode, CostBreakdown
 
 logger = structlog.get_logger()
@@ -42,13 +43,11 @@ class CostCalculator:
     Deterministic cost calculation engine
     """
     
-    def __init__(self):
-        self.logger = logger.bind(component="cost_calculator")
-        self.plugin_loader = PluginLoader()
-        
-        # Initialize pricing resolver (hybrid architecture)
-        from services.pricing_resolver import PricingResolver
-        self.pricing_resolver = PricingResolver()
+    def __init__(self, graph_engine: GraphEngine, plugin_loader: PluginLoader):
+        self.graph_engine = graph_engine
+        self.plugin_loader = plugin_loader
+        self.formula_engine = FormulaEngine()
+        self.logger = structlog.get_logger()
     
     async def calculate_estimate(
         self,
