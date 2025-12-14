@@ -8,7 +8,7 @@ from decimal import Decimal
 from dataclasses import dataclass, field
 import structlog
 
-from services.graph_engine import GraphEngine
+from services.graph_engine import GraphEngine, InfrastructureGraph
 from services.plugin_loader import PluginLoader
 from services.formula_engine import FormulaEngine
 from models.schemas import ServiceNode, CostBreakdown
