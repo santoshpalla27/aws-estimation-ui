@@ -16,6 +16,25 @@ services:
       - app-network
     restart: unless-stopped
 
+  # Database Initialization - Runs once on startup
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://costuser:${POSTGRES_PASSWORD:-securepass}@postgres:5432/costdb
+      - POSTGRES_USER=costuser
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-securepass}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    volumes:
+      - ./backend:/app/backend:ro
+    command: /bin/bash /app/backend/scripts/init_entrypoint.sh
+    restart: "no" # Run once and exit
+
   # Backend API - FastAPI
   backend:
     build:
@@ -37,6 +56,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     networks:
       - app-network
     restart: unless-stopped
