@@ -1,0 +1,65 @@
+service: AmazonS3
+version: "2024.12"
+last_updated: "2024-12-01"
+source: "https://aws.amazon.com/s3/pricing/"
+
+regions:
+  us-east-1:
+    storage_standard_gb_month: 0.023
+    storage_ia_gb_month: 0.0125
+    storage_glacier_gb_month: 0.004
+    put_request_per_1000: 0.005
+    get_request_per_1000: 0.0004
+    data_transfer_out_gb: 0.09
+    free_tier:
+      storage_gb: 5
+      put_requests: 2000
+      get_requests: 20000
+  
+  us-west-2:
+    storage_standard_gb_month: 0.023
+    storage_ia_gb_month: 0.0125
+    storage_glacier_gb_month: 0.004
+    put_request_per_1000: 0.005
+    get_request_per_1000: 0.0004
+    data_transfer_out_gb: 0.09
+    free_tier:
+      storage_gb: 5
+      put_requests: 2000
+      get_requests: 20000
+  
+  eu-west-1:
+    storage_standard_gb_month: 0.024
+    storage_ia_gb_month: 0.013
+    storage_glacier_gb_month: 0.0042
+    put_request_per_1000: 0.0052
+    get_request_per_1000: 0.00042
+    data_transfer_out_gb: 0.09
+    free_tier:
+      storage_gb: 5
+      put_requests: 2000
+      get_requests: 20000
+  
+  ap-south-1:
+    storage_standard_gb_month: 0.025
+    storage_ia_gb_month: 0.014
+    storage_glacier_gb_month: 0.0045
+    put_request_per_1000: 0.0055
+    get_request_per_1000: 0.00044
+    data_transfer_out_gb: 0.109
+    free_tier:
+      storage_gb: 5
+      put_requests: 2000
+      get_requests: 20000
+  
+  ap-southeast-1:
+    storage_standard_gb_month: 0.025
+    storage_ia_gb_month: 0.014
+    storage_glacier_gb_month: 0.0045
+    put_request_per_1000: 0.0055
+    get_request_per_1000: 0.00044
+    data_transfer_out_gb: 0.12
+    free_tier:
+      storage_gb: 5
+      put_requests: 2000
+      get_requests: 20000

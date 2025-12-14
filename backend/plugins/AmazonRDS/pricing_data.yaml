@@ -1,0 +1,65 @@
+service: AmazonRDS
+version: "2024.12"
+last_updated: "2024-12-01"
+source: "https://aws.amazon.com/rds/pricing/"
+
+regions:
+  us-east-1:
+    db_t3_micro_hour: 0.017
+    db_t3_small_hour: 0.034
+    db_t3_medium_hour: 0.068
+    db_t3_large_hour: 0.136
+    db_r5_large_hour: 0.24
+    db_r5_xlarge_hour: 0.48
+    storage_gp3_gb_month: 0.115
+    storage_io1_gb_month: 0.125
+    storage_io1_iops_month: 0.10
+    backup_storage_gb_month: 0.095
+  
+  us-west-2:
+    db_t3_micro_hour: 0.017
+    db_t3_small_hour: 0.034
+    db_t3_medium_hour: 0.068
+    db_t3_large_hour: 0.136
+    db_r5_large_hour: 0.24
+    db_r5_xlarge_hour: 0.48
+    storage_gp3_gb_month: 0.115
+    storage_io1_gb_month: 0.125
+    storage_io1_iops_month: 0.10
+    backup_storage_gb_month: 0.095
+  
+  eu-west-1:
+    db_t3_micro_hour: 0.019
+    db_t3_small_hour: 0.038
+    db_t3_medium_hour: 0.076
+    db_t3_large_hour: 0.152
+    db_r5_large_hour: 0.27
+    db_r5_xlarge_hour: 0.54
+    storage_gp3_gb_month: 0.127
+    storage_io1_gb_month: 0.138
+    storage_io1_iops_month: 0.11
+    backup_storage_gb_month: 0.105
+  
+  ap-south-1:
+    db_t3_micro_hour: 0.018
+    db_t3_small_hour: 0.036
+    db_t3_medium_hour: 0.072
+    db_t3_large_hour: 0.144
+    db_r5_large_hour: 0.254
+    db_r5_xlarge_hour: 0.508
+    storage_gp3_gb_month: 0.12
+    storage_io1_gb_month: 0.13
+    storage_io1_iops_month: 0.105
+    backup_storage_gb_month: 0.10
+  
+  ap-southeast-1:
+    db_t3_micro_hour: 0.019
+    db_t3_small_hour: 0.038
+    db_t3_medium_hour: 0.076
+    db_t3_large_hour: 0.152
+    db_r5_large_hour: 0.27
+    db_r5_xlarge_hour: 0.54
+    storage_gp3_gb_month: 0.127
+    storage_io1_gb_month: 0.138
+    storage_io1_iops_month: 0.11
+    backup_storage_gb_month: 0.105

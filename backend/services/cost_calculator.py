@@ -46,9 +46,9 @@ class CostCalculator:
         self.logger = logger.bind(component="cost_calculator")
         self.plugin_loader = PluginLoader()
         
-        # Initialize pricing loader
-        from services.pricing_loader import PricingLoader
-        self.pricing_loader = PricingLoader()
+        # Initialize pricing resolver (hybrid architecture)
+        from services.pricing_resolver import PricingResolver
+        self.pricing_resolver = PricingResolver()
     
     async def calculate_estimate(
         self,
@@ -178,9 +178,9 @@ class CostCalculator:
                     if prop_name not in config and 'default' in prop_def:
                         config[prop_name] = prop_def['default']
             
-            # Load pricing data for service/region
-            pricing_data = await self.pricing_loader.get_pricing(
-                service_id=service_type,
+            # Load pricing context for service/region (LOCAL ONLY - NO API CALLS)
+            pricing_context = await self.pricing_resolver.get_context(
+                service=service_type,
                 region=node.region
             )
             
@@ -192,19 +192,18 @@ class CostCalculator:
             from services.formula_engine import FormulaEngine
             engine = FormulaEngine()
             formula_def = engine.load_formula(formula_yaml)
-            result = engine.execute_formula(formula_def, config, pricing=pricing_data)
+            result = engine.execute_formula(formula_def, config, pricing=pricing_context)
             
             # Convert to CostResult
             breakdown_dict = {}
             for step_id, step_data in result['breakdown'].items():
                 breakdown_dict[step_id] = Decimal(str(step_data['value']))
             
-            # Collect assumptions (include pricing metadata if available)
+            # Collect assumptions (include pricing metadata)
             assumptions = result.get('assumptions', [])
-            if pricing_data and '_metadata' in pricing_data:
-                metadata = pricing_data['_metadata']
+            if hasattr(pricing_context, 'version'):
                 assumptions.append(
-                    f"Pricing: {metadata['version']} (updated {metadata['last_updated']})"
+                    f"Pricing: {pricing_context.version} (fetched {pricing_context.fetched_at.strftime('%Y-%m-%d')})"
                 )
             
             return CostResult(

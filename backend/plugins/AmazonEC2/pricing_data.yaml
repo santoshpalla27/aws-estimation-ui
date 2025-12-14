@@ -1,0 +1,70 @@
+service: AmazonEC2
+version: "2024.12"
+last_updated: "2024-12-01"
+source: "https://aws.amazon.com/ec2/pricing/"
+
+regions:
+  us-east-1:
+    t3_micro_hour: 0.0104
+    t3_small_hour: 0.0208
+    t3_medium_hour: 0.0416
+    t3_large_hour: 0.0832
+    m5_large_hour: 0.096
+    m5_xlarge_hour: 0.192
+    m5_2xlarge_hour: 0.384
+    ebs_gp3_gb_month: 0.08
+    ebs_io2_gb_month: 0.125
+    ebs_io2_iops_month: 0.065
+    data_transfer_out_gb: 0.09
+  
+  us-west-2:
+    t3_micro_hour: 0.0104
+    t3_small_hour: 0.0208
+    t3_medium_hour: 0.0416
+    t3_large_hour: 0.0832
+    m5_large_hour: 0.096
+    m5_xlarge_hour: 0.192
+    m5_2xlarge_hour: 0.384
+    ebs_gp3_gb_month: 0.08
+    ebs_io2_gb_month: 0.125
+    ebs_io2_iops_month: 0.065
+    data_transfer_out_gb: 0.09
+  
+  eu-west-1:
+    t3_micro_hour: 0.0114
+    t3_small_hour: 0.0229
+    t3_medium_hour: 0.0458
+    t3_large_hour: 0.0915
+    m5_large_hour: 0.107
+    m5_xlarge_hour: 0.214
+    m5_2xlarge_hour: 0.428
+    ebs_gp3_gb_month: 0.089
+    ebs_io2_gb_month: 0.138
+    ebs_io2_iops_month: 0.072
+    data_transfer_out_gb: 0.09
+  
+  ap-south-1:
+    t3_micro_hour: 0.0093
+    t3_small_hour: 0.0187
+    t3_medium_hour: 0.0374
+    t3_large_hour: 0.0749
+    m5_large_hour: 0.086
+    m5_xlarge_hour: 0.172
+    m5_2xlarge_hour: 0.344
+    ebs_gp3_gb_month: 0.072
+    ebs_io2_gb_month: 0.113
+    ebs_io2_iops_month: 0.059
+    data_transfer_out_gb: 0.109
+  
+  ap-southeast-1:
+    t3_micro_hour: 0.0116
+    t3_small_hour: 0.0232
+    t3_medium_hour: 0.0464
+    t3_large_hour: 0.0928
+    m5_large_hour: 0.107
+    m5_xlarge_hour: 0.214
+    m5_2xlarge_hour: 0.428
+    ebs_gp3_gb_month: 0.089
+    ebs_io2_gb_month: 0.138
+    ebs_io2_iops_month: 0.072
+    data_transfer_out_gb: 0.12
