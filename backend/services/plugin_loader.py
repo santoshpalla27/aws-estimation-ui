@@ -99,10 +99,13 @@ class PluginLoader:
             cost_formula = self._load_cost_formula(service_dir)
             ui_schema = self._load_ui_schema(service_dir)
             
+            # Get category from top level or from metadata (backward compatibility)
+            category = plugin_data.get("category") or plugin_data.get("metadata", {}).get("category", "Other")
+            
             service_def = ServiceDefinition(
                 service_id=plugin_data["service_id"],
                 version=plugin_data.get("version", "1.0.0"),
-                category=plugin_data["category"],
+                category=category,
                 metadata=ServiceMetadata(**plugin_data["metadata"]),
                 dependencies=plugin_data.get("dependencies", {}),
                 cost_formula=cost_formula,
