@@ -138,7 +138,7 @@ class CostCalculator:
         Get cost for a specific service using the formula engine
         """
         service_type = node.service_type
-        config = node.config
+        config = node.config.copy() if node.config else {}
         
         # Try to load service plugin and use formula engine
         try:
@@ -167,6 +167,12 @@ class CostCalculator:
                     assumptions=[f"Cost formula not found for {service_type}"],
                     warnings=[f"Service {service_type} has no cost formula"]
                 )
+            
+            # Inject default values from UI schema for missing config values
+            if service_def.ui_schema and 'properties' in service_def.ui_schema:
+                for prop_name, prop_def in service_def.ui_schema['properties'].items():
+                    if prop_name not in config and 'default' in prop_def:
+                        config[prop_name] = prop_def['default']
             
             # Convert cost_formula dict to YAML string for FormulaEngine
             import yaml
