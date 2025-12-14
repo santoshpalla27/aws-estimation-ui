@@ -43,11 +43,9 @@ class CostCalculator:
     Deterministic cost calculation engine
     """
     
-    def __init__(self, graph_engine: GraphEngine, plugin_loader: PluginLoader):
-        self.graph_engine = graph_engine
-        self.plugin_loader = plugin_loader
-        self.formula_engine = FormulaEngine()
-        self.logger = structlog.get_logger()
+    def __init__(self):
+        self.logger = logger.bind(component="cost_calculator")
+        self.plugin_loader = PluginLoader()
     
     async def calculate_estimate(
         self,
