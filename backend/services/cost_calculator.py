@@ -135,39 +135,72 @@ class CostCalculator:
     
     async def _get_service_cost(self, node: ServiceNode) -> CostResult:
         """
-        Get cost for a specific service
-        Uses hardcoded formulas for now (will be replaced with plugin system)
+        Get cost for a specific service using the formula engine
         """
         service_type = node.service_type
         config = node.config
-        region = node.region
         
-        # EC2 cost calculation
-        if service_type == "AmazonEC2":
-            return await self._calculate_ec2_cost(node)
-        
-        # Lambda cost calculation
-        elif service_type == "AWSLambda":
-            return await self._calculate_lambda_cost(node)
-        
-        # RDS cost calculation
-        elif service_type == "AmazonRDS":
-            return await self._calculate_rds_cost(node)
-        
-        # S3 cost calculation
-        elif service_type == "AmazonS3":
-            return await self._calculate_s3_cost(node)
-        
-        # Default: return zero cost
-        else:
-            self.logger.warning("unsupported_service_type", service_type=service_type)
+        # Try to load service plugin and use formula engine
+        try:
+            # Load plugin metadata
+            plugin_metadata = self.plugin_loader.get_service(service_type)
+            if not plugin_metadata:
+                self.logger.warning("service_not_found", service_type=service_type)
+                return CostResult(
+                    node_id=node.id,
+                    service_type=service_type,
+                    total_monthly_cost=Decimal("0.00"),
+                    breakdown={},
+                    assumptions=[f"Service plugin not found for {service_type}"],
+                    warnings=[f"Service {service_type} plugin not found"]
+                )
+            
+            # Load cost formula
+            formula_path = plugin_metadata.get('cost_formula_path')
+            if not formula_path:
+                self.logger.warning("no_cost_formula", service_type=service_type)
+                return CostResult(
+                    node_id=node.id,
+                    service_type=service_type,
+                    total_monthly_cost=Decimal("0.00"),
+                    breakdown={},
+                    assumptions=[f"Cost formula not found for {service_type}"],
+                    warnings=[f"Service {service_type} has no cost formula"]
+                )
+            
+            # Read formula file
+            with open(formula_path, 'r') as f:
+                formula_yaml = f.read()
+            
+            # Execute formula
+            from services.formula_engine import FormulaEngine
+            engine = FormulaEngine()
+            formula_def = engine.load_formula(formula_yaml)
+            result = engine.execute_formula(formula_def, config)
+            
+            # Convert to CostResult
+            breakdown_dict = {}
+            for step_id, step_data in result['breakdown'].items():
+                breakdown_dict[step_id] = Decimal(str(step_data['value']))
+            
+            return CostResult(
+                node_id=node.id,
+                service_type=service_type,
+                total_monthly_cost=Decimal(str(result['total_cost'])),
+                breakdown=breakdown_dict,
+                assumptions=result.get('assumptions', []),
+                warnings=[]
+            )
+            
+        except Exception as e:
+            self.logger.error("cost_calculation_error", service_type=service_type, error=str(e))
             return CostResult(
                 node_id=node.id,
                 service_type=service_type,
                 total_monthly_cost=Decimal("0.00"),
                 breakdown={},
-                assumptions=[f"Cost calculation not implemented for {service_type}"],
-                warnings=[f"Service {service_type} cost calculation not implemented"]
+                assumptions=[f"Error calculating cost for {service_type}"],
+                warnings=[f"Cost calculation failed: {str(e)}"]
             )
     
     async def _calculate_ec2_cost(self, node: ServiceNode) -> CostResult:
@@ -380,11 +413,16 @@ class CostCalculator:
         # By service
         for node_id, cost_result in node_costs.items():
             if node_id in graph.nodes:
+                # Convert Decimal breakdown values to float
+                details_float = {}
+                if cost_result.breakdown:
+                    details_float = {k: float(v) for k, v in cost_result.breakdown.items()}
+                
                 breakdowns.append(CostBreakdown(
                     dimension="service",
                     key=cost_result.service_type,
-                    value=cost_result.total_monthly_cost,
-                    details=cost_result.breakdown
+                    value=float(cost_result.total_monthly_cost),  # Convert Decimal to float
+                    details=details_float if details_float else None
                 ))
         
         # By region
@@ -399,7 +437,8 @@ class CostCalculator:
             breakdowns.append(CostBreakdown(
                 dimension="region",
                 key=region,
-                value=cost
+                value=float(cost),  # Convert Decimal to float
+                details=None
             ))
         
         return breakdowns

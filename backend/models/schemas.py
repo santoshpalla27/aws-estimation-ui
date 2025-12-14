@@ -78,7 +78,7 @@ class InfrastructureGraph(BaseModel):
 class CostBreakdown(BaseModel):
     dimension: str  # service, region, category
     key: str
-    value: Decimal
+    value: float  # Changed from Decimal to float for JSON serialization
     details: Optional[Dict[str, Any]] = None
 
 
