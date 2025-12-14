@@ -1,0 +1,18 @@
+service_id: AWSCodeArtifact
+version: "1.0.0"
+category: Developer Tools
+
+metadata:
+  service_id: AWSCodeArtifact
+  display_name: AWS CodeArtifact
+  description: Fully managed artifact repository service
+  category: Developer Tools
+  icon_url: ""
+  tags: [artifacts, packages, repository, maven, npm]
+
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+
+validation_rules: []

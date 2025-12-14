@@ -1,0 +1,15 @@
+service_id: AmazonECRPublic
+version: "1.0.0"
+category: Compute
+metadata:
+  service_id: AmazonECRPublic
+  display_name: Amazon ECR Public
+  description: Public container registry
+  category: Compute
+  icon_url: ""
+  tags: [docker, containers, registry, public]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

@@ -1,0 +1,15 @@
+service_id: AmazonFSx
+version: "1.0.0"
+category: Storage
+metadata:
+  service_id: AmazonFSx
+  display_name: Amazon FSx
+  description: Fully managed third-party file systems
+  category: Storage
+  icon_url: ""
+  tags: [file-storage, windows, lustre, netapp]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

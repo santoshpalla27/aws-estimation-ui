@@ -1,0 +1,15 @@
+service_id: AWSEvents
+version: "1.0.0"
+category: Messaging
+metadata:
+  service_id: AWSEvents
+  display_name: Amazon EventBridge
+  description: Serverless event bus service
+  category: Messaging
+  icon_url: ""
+  tags: [events, serverless, integration]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

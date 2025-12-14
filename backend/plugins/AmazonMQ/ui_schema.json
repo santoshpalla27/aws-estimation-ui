@@ -1,0 +1,27 @@
+{
+    "type": "object",
+    "properties": {
+        "broker_instance_type": {
+            "type": "string",
+            "title": "Broker Instance Type",
+            "enum": [
+                "mq.t3.micro",
+                "mq.m5.large"
+            ],
+            "default": "mq.t3.micro"
+        },
+        "deployment_mode": {
+            "type": "string",
+            "title": "Deployment Mode",
+            "enum": [
+                "SINGLE_INSTANCE",
+                "ACTIVE_STANDBY"
+            ],
+            "default": "SINGLE_INSTANCE"
+        }
+    },
+    "required": [
+        "broker_instance_type",
+        "deployment_mode"
+    ]
+}

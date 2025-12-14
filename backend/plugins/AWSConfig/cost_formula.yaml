@@ -1,0 +1,28 @@
+service: AWSConfig
+version: "1.0.0"
+inputs:
+  - name: config_items_recorded
+    type: integer
+    required: true
+    default: 10000
+  - name: config_rules_evaluated
+    type: integer
+    required: true
+    default: 100000
+calculation_steps:
+  - id: item_cost
+    description: "Configuration item cost"
+    formula: "config_items_recorded * 0.003"
+    output: item_cost
+  - id: rule_cost
+    description: "Rule evaluation cost"
+    formula: "config_rules_evaluated * 0.001"
+    output: rule_cost
+total_formula: "item_cost + rule_cost"
+assumptions:
+  - "Configuration items: $0.003 per item"
+  - "Rule evaluations: $0.001 per evaluation"
+pricing_sources:
+  - name: "AWS Config Pricing"
+    url: "https://aws.amazon.com/config/pricing/"
+    last_updated: "2024-01-01"

@@ -1,0 +1,14 @@
+{
+    "type": "object",
+    "properties": {
+        "state_transitions_per_month": {
+            "type": "integer",
+            "title": "State Transitions/Month",
+            "default": 1000000,
+            "minimum": 0
+        }
+    },
+    "required": [
+        "state_transitions_per_month"
+    ]
+}

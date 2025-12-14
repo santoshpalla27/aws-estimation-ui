@@ -1,0 +1,36 @@
+service: AmazonMQ
+version: "1.0.0"
+inputs:
+  - name: broker_instance_type
+    type: string
+    required: true
+    default: "mq.t3.micro"
+  - name: deployment_mode
+    type: string
+    required: true
+    default: "SINGLE_INSTANCE"
+calculation_steps:
+  - id: broker_cost
+    description: "Broker instance cost"
+    formula: |
+      if broker_instance_type == 'mq.t3.micro':
+        if deployment_mode == 'SINGLE_INSTANCE':
+          0.030 * 730
+        else:
+          0.030 * 730 * 2
+      elif broker_instance_type == 'mq.m5.large':
+        if deployment_mode == 'SINGLE_INSTANCE':
+          0.340 * 730
+        else:
+          0.340 * 730 * 2
+      else:
+        0.340 * 730
+    output: broker_cost
+total_formula: "broker_cost"
+assumptions:
+  - "mq.t3.micro: $0.030/hour"
+  - "Active/standby deployment doubles cost"
+pricing_sources:
+  - name: "Amazon MQ Pricing"
+    url: "https://aws.amazon.com/amazon-mq/pricing/"
+    last_updated: "2024-01-01"

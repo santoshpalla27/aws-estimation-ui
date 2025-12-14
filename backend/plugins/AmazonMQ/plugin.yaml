@@ -1,0 +1,15 @@
+service_id: AmazonMQ
+version: "1.0.0"
+category: Messaging
+metadata:
+  service_id: AmazonMQ
+  display_name: Amazon MQ
+  description: Managed message broker service for Apache ActiveMQ and RabbitMQ
+  category: Messaging
+  icon_url: ""
+  tags: [messaging, broker, activemq, rabbitmq]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

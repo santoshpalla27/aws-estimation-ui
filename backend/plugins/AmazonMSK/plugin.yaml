@@ -1,0 +1,15 @@
+service_id: AmazonMSK
+version: "1.0.0"
+category: Messaging
+metadata:
+  service_id: AmazonMSK
+  display_name: Amazon MSK
+  description: Fully managed Apache Kafka service
+  category: Messaging
+  icon_url: ""
+  tags: [kafka, streaming, messaging]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

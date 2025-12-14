@@ -1,0 +1,24 @@
+service: AWSCloudTrail
+version: "1.0.0"
+inputs:
+  - name: management_events_per_month
+    type: integer
+    required: true
+    default: 100000
+calculation_steps:
+  - id: event_cost
+    description: "Management event cost"
+    formula: |
+      if management_events_per_month <= 100000:
+        0
+      else:
+        (management_events_per_month - 100000) * 0.000001
+    output: event_cost
+total_formula: "event_cost"
+assumptions:
+  - "First 100,000 management events free"
+  - "Additional events: $1.00 per 100,000"
+pricing_sources:
+  - name: "AWS CloudTrail Pricing"
+    url: "https://aws.amazon.com/cloudtrail/pricing/"
+    last_updated: "2024-01-01"

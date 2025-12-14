@@ -1,0 +1,15 @@
+service_id: AWSConfig
+version: "1.0.0"
+category: Management
+metadata:
+  service_id: AWSConfig
+  display_name: AWS Config
+  description: Resource configuration tracking and compliance
+  category: Management
+  icon_url: ""
+  tags: [compliance, configuration, governance]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

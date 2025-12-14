@@ -1,0 +1,15 @@
+service_id: AWSSystemsManager
+version: "1.0.0"
+category: Management
+metadata:
+  service_id: AWSSystemsManager
+  display_name: AWS Systems Manager
+  description: Operations management service
+  category: Management
+  icon_url: ""
+  tags: [operations, management, automation]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

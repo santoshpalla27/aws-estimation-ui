@@ -1,0 +1,20 @@
+service: AWSServiceCatalog
+version: "1.0.0"
+inputs:
+  - name: api_calls_per_month
+    type: integer
+    required: false
+    default: 0
+calculation_steps:
+  - id: api_cost
+    description: "API call cost"
+    formula: "0"
+    output: api_cost
+total_formula: "api_cost"
+assumptions:
+  - "Service Catalog: Free"
+  - "Pay only for underlying AWS resources"
+pricing_sources:
+  - name: "AWS Service Catalog Pricing"
+    url: "https://aws.amazon.com/servicecatalog/pricing/"
+    last_updated: "2024-01-01"

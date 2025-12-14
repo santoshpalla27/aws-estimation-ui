@@ -1,0 +1,15 @@
+service_id: AmazonPinpoint
+version: "1.0.0"
+category: Messaging
+metadata:
+  service_id: AmazonPinpoint
+  display_name: Amazon Pinpoint
+  description: Customer engagement and marketing service
+  category: Messaging
+  icon_url: ""
+  tags: [marketing, engagement, messaging, analytics]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

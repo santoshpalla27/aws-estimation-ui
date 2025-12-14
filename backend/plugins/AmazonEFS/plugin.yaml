@@ -1,0 +1,20 @@
+service_id: AmazonEFS
+version: "1.0.0"
+category: Storage
+
+metadata:
+  service_id: AmazonEFS
+  display_name: Amazon EFS
+  description: Scalable, elastic file storage for Linux-based workloads
+  category: Storage
+  icon_url: ""
+  tags: [file-storage, nfs, elastic, shared]
+
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit:
+    - service: AmazonVPC
+      reason: "EFS requires VPC"
+
+validation_rules: []

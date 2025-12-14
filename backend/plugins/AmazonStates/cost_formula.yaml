@@ -1,0 +1,24 @@
+service: AmazonStates
+version: "1.0.0"
+inputs:
+  - name: state_transitions_per_month
+    type: integer
+    required: true
+    default: 1000000
+calculation_steps:
+  - id: transition_cost
+    description: "State transition cost"
+    formula: |
+      if state_transitions_per_month <= 4000:
+        0
+      else:
+        (state_transitions_per_month - 4000) * 0.000025
+    output: transition_cost
+total_formula: "transition_cost"
+assumptions:
+  - "First 4,000 state transitions free per month"
+  - "State transitions: $0.025 per 1,000"
+pricing_sources:
+  - name: "AWS Step Functions Pricing"
+    url: "https://aws.amazon.com/step-functions/pricing/"
+    last_updated: "2024-01-01"

@@ -1,0 +1,28 @@
+service_id: AWSCodePipeline
+version: "1.0.0"
+category: Developer Tools
+
+metadata:
+  service_id: AWSCodePipeline
+  display_name: AWS CodePipeline
+  description: Continuous delivery service for fast and reliable application updates
+  category: Developer Tools
+  icon_url: ""
+  tags: [cicd, pipeline, automation, deployment]
+
+dependencies:
+  mandatory: []
+  conditional:
+    - service: CodeBuild
+      condition: "use_codebuild == true"
+      reason: "CodeBuild for build stage"
+    - service: AWSCodeDeploy
+      condition: "use_codedeploy == true"
+      reason: "CodeDeploy for deployment stage"
+  implicit: []
+
+validation_rules:
+  - field: active_pipelines
+    rule: "active_pipelines > 0"
+    message: "Must have at least one pipeline"
+    severity: error

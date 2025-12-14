@@ -1,0 +1,14 @@
+{
+    "type": "object",
+    "properties": {
+        "monthly_targeted_users": {
+            "type": "integer",
+            "title": "Monthly Targeted Users",
+            "default": 5000,
+            "minimum": 0
+        }
+    },
+    "required": [
+        "monthly_targeted_users"
+    ]
+}

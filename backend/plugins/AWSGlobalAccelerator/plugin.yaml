@@ -1,0 +1,15 @@
+service_id: AWSGlobalAccelerator
+version: "1.0.0"
+category: Networking
+metadata:
+  service_id: AWSGlobalAccelerator
+  display_name: AWS Global Accelerator
+  description: Network performance optimization service
+  category: Networking
+  icon_url: ""
+  tags: [networking, performance, acceleration]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

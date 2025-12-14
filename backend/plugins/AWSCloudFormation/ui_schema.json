@@ -1,0 +1,12 @@
+{
+    "type": "object",
+    "properties": {
+        "handler_operations_per_month": {
+            "type": "integer",
+            "title": "Handler Operations/Month",
+            "default": 0,
+            "minimum": 0
+        }
+    },
+    "required": []
+}

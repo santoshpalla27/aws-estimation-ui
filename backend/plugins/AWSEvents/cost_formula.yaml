@@ -1,0 +1,20 @@
+service: AWSEvents
+version: "1.0.0"
+inputs:
+  - name: custom_events_per_month
+    type: integer
+    required: true
+    default: 1000000
+calculation_steps:
+  - id: event_cost
+    description: "Custom event cost"
+    formula: "custom_events_per_month * 0.000001"
+    output: event_cost
+total_formula: "event_cost"
+assumptions:
+  - "Custom events: $1.00 per million"
+  - "AWS service events: Free"
+pricing_sources:
+  - name: "Amazon EventBridge Pricing"
+    url: "https://aws.amazon.com/eventbridge/pricing/"
+    last_updated: "2024-01-01"

@@ -1,0 +1,28 @@
+service: AWSDataTransfer
+version: "1.0.0"
+inputs:
+  - name: data_transfer_out_gb
+    type: number
+    required: true
+    default: 1000
+calculation_steps:
+  - id: transfer_cost
+    description: "Data transfer out cost"
+    formula: |
+      if data_transfer_out_gb <= 10240:
+        data_transfer_out_gb * 0.09
+      elif data_transfer_out_gb <= 51200:
+        (10240 * 0.09) + ((data_transfer_out_gb - 10240) * 0.085)
+      elif data_transfer_out_gb <= 153600:
+        (10240 * 0.09) + (40960 * 0.085) + ((data_transfer_out_gb - 51200) * 0.07)
+      else:
+        (10240 * 0.09) + (40960 * 0.085) + (102400 * 0.07) + ((data_transfer_out_gb - 153600) * 0.05)
+    output: transfer_cost
+total_formula: "transfer_cost"
+assumptions:
+  - "Data transfer out: $0.09/GB (first 10TB)"
+  - "Tiered pricing for higher volumes"
+pricing_sources:
+  - name: "AWS Data Transfer Pricing"
+    url: "https://aws.amazon.com/ec2/pricing/on-demand/"
+    last_updated: "2024-01-01"

@@ -1,0 +1,30 @@
+service: AmazonFSx
+version: "1.0.0"
+inputs:
+  - name: file_system_type
+    type: string
+    required: true
+    default: "Windows"
+  - name: storage_gb
+    type: number
+    required: true
+    default: 300
+calculation_steps:
+  - id: storage_cost
+    description: "FSx storage cost"
+    formula: |
+      if file_system_type == 'Windows':
+        storage_gb * 0.13
+      elif file_system_type == 'Lustre':
+        storage_gb * 0.14
+      else:
+        storage_gb * 0.13
+    output: storage_cost
+total_formula: "storage_cost"
+assumptions:
+  - "Windows File Server: $0.13/GB-month"
+  - "Lustre: $0.14/GB-month"
+pricing_sources:
+  - name: "Amazon FSx Pricing"
+    url: "https://aws.amazon.com/fsx/pricing/"
+    last_updated: "2024-01-01"

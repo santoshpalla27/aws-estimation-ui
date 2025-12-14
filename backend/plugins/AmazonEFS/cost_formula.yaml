@@ -1,0 +1,36 @@
+service: AmazonEFS
+version: "1.0.0"
+
+inputs:
+  - name: storage_class
+    type: string
+    required: true
+    default: "Standard"
+  - name: storage_gb
+    type: number
+    required: true
+    default: 100
+
+calculation_steps:
+  - id: storage_cost
+    description: "EFS storage cost"
+    formula: |
+      if storage_class == 'Standard':
+        storage_gb * 0.30
+      elif storage_class == 'Infrequent Access':
+        storage_gb * 0.025
+      else:
+        storage_gb * 0.30
+    output: storage_cost
+
+total_formula: "storage_cost"
+
+assumptions:
+  - "Standard storage: $0.30/GB-month"
+  - "Infrequent Access: $0.025/GB-month"
+  - "Pricing based on us-east-1"
+
+pricing_sources:
+  - name: "Amazon EFS Pricing"
+    url: "https://aws.amazon.com/efs/pricing/"
+    last_updated: "2024-01-01"

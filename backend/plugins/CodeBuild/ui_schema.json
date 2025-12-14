@@ -1,0 +1,25 @@
+{
+    "type": "object",
+    "properties": {
+        "build_minutes_per_month": {
+            "type": "number",
+            "title": "Build Minutes/Month",
+            "default": 100,
+            "minimum": 0
+        },
+        "compute_type": {
+            "type": "string",
+            "title": "Compute Type",
+            "enum": [
+                "general1.small",
+                "general1.medium",
+                "general1.large"
+            ],
+            "default": "general1.small"
+        }
+    },
+    "required": [
+        "build_minutes_per_month",
+        "compute_type"
+    ]
+}

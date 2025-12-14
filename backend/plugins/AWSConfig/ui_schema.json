@@ -1,0 +1,21 @@
+{
+    "type": "object",
+    "properties": {
+        "config_items_recorded": {
+            "type": "integer",
+            "title": "Config Items Recorded",
+            "default": 10000,
+            "minimum": 0
+        },
+        "config_rules_evaluated": {
+            "type": "integer",
+            "title": "Rule Evaluations",
+            "default": 100000,
+            "minimum": 0
+        }
+    },
+    "required": [
+        "config_items_recorded",
+        "config_rules_evaluated"
+    ]
+}

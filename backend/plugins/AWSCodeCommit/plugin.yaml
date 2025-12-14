@@ -1,0 +1,18 @@
+service_id: AWSCodeCommit
+version: "1.0.0"
+category: Developer Tools
+
+metadata:
+  service_id: AWSCodeCommit
+  display_name: AWS CodeCommit
+  description: Fully managed source control service
+  category: Developer Tools
+  icon_url: ""
+  tags: [git, source-control, repository]
+
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+
+validation_rules: []

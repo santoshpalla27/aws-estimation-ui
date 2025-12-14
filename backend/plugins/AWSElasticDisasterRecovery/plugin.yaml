@@ -1,0 +1,15 @@
+service_id: AWSElasticDisasterRecovery
+version: "1.0.0"
+category: Storage
+metadata:
+  service_id: AWSElasticDisasterRecovery
+  display_name: AWS Elastic Disaster Recovery
+  description: Scalable, cost-effective disaster recovery service
+  category: Storage
+  icon_url: ""
+  tags: [disaster-recovery, backup, replication]
+dependencies:
+  mandatory: []
+  conditional: []
+  implicit: []
+validation_rules: []

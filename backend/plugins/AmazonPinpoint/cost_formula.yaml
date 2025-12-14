@@ -1,0 +1,19 @@
+service: AmazonPinpoint
+version: "1.0.0"
+inputs:
+  - name: monthly_targeted_users
+    type: integer
+    required: true
+    default: 5000
+calculation_steps:
+  - id: user_cost
+    description: "Monthly targeted user cost"
+    formula: "monthly_targeted_users * 0.0012"
+    output: user_cost
+total_formula: "user_cost"
+assumptions:
+  - "Monthly targeted users: $1.20 per 1,000"
+pricing_sources:
+  - name: "Amazon Pinpoint Pricing"
+    url: "https://aws.amazon.com/pinpoint/pricing/"
+    last_updated: "2024-01-01"

@@ -1,0 +1,20 @@
+service: AWSBackup
+version: "1.0.0"
+inputs:
+  - name: backup_storage_gb
+    type: number
+    required: true
+    default: 500
+calculation_steps:
+  - id: storage_cost
+    description: "Backup storage cost"
+    formula: "backup_storage_gb * 0.05"
+    output: storage_cost
+total_formula: "storage_cost"
+assumptions:
+  - "Warm storage: $0.05/GB-month"
+  - "Cold storage: $0.01/GB-month"
+pricing_sources:
+  - name: "AWS Backup Pricing"
+    url: "https://aws.amazon.com/backup/pricing/"
+    last_updated: "2024-01-01"
