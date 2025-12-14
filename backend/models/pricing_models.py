@@ -13,6 +13,10 @@ from core.database import Base
 class PricingVersion(Base):
     """Pricing version table - tracks pricing data versions"""
     __tablename__ = "pricing_versions"
+    __table_args__ = (
+        Index('idx_pricing_versions_active', 'is_active'),
+        {'extend_existing': True}  # Allow table redefinition
+    )
     
     version = Column(String(20), primary_key=True)  # "2024-12"
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -45,6 +49,7 @@ class PricingRate(Base):
     __table_args__ = (
         Index('idx_pricing_lookup', 'version', 'service', 'region', 'pricing_key'),
         Index('idx_pricing_service_region', 'service', 'region'),
+        {'extend_existing': True}  # Allow table redefinition
     )
 
 
@@ -63,6 +68,7 @@ class PricingMetadata(Base):
     
     __table_args__ = (
         Index('idx_pricing_metadata_lookup', 'version', 'service', 'region', unique=True),
+        {'extend_existing': True}  # Allow table redefinition
     )
 
 
@@ -84,4 +90,5 @@ class PricingChange(Base):
     __table_args__ = (
         Index('idx_pricing_changes_version', 'new_version'),
         Index('idx_pricing_changes_service', 'service', 'region'),
+        {'extend_existing': True}  # Allow table redefinition
     )
