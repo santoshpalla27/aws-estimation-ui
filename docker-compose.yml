@@ -110,7 +110,7 @@ services:
       context: .
       dockerfile: backend/tests/Dockerfile
     environment:
-      - BACKEND_URL=http://54.196.223.229:8000
+      - BACKEND_URL=http://backend:8000
     depends_on:
       backend:
         condition: service_started
