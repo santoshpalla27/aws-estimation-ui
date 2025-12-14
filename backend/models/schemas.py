@@ -91,11 +91,11 @@ class Estimate(BaseModel):
     id: UUID
     project_id: UUID
     graph_id: Optional[UUID]
-    total_monthly_cost: Decimal
+    total_monthly_cost: float  # Changed from Decimal to float for JSON serialization
     breakdown: List[CostBreakdown]
     warnings: List[str]
     assumptions: List[str]
-    confidence: Optional[Decimal]
+    confidence: Optional[float]  # Changed from Decimal to float for JSON serialization
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
