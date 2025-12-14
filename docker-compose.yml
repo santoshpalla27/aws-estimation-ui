@@ -56,8 +56,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
+      # db-init disabled - tables already exist
+      # db-init:
+      #   condition: service_completed_successfully
     networks:
       - app-network
     restart: unless-stopped
