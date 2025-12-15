@@ -1,5 +1,5 @@
 service: AmazonEKS
-version: "1.0.0"
+version: "2.0.0"
 
 inputs:
   - name: cluster_count
@@ -26,34 +26,43 @@ inputs:
 calculation_steps:
   - id: cluster_cost
     description: "EKS cluster cost"
-    formula: "cluster_count * 0.10 * 730"
+    formula: "cluster_count * pricing.cluster.per_hour * pricing.constants.hours_per_month"
     output: cluster_cost
+    pricing_keys:
+      - cluster.per_hour
+      - constants.hours_per_month
+      
   - id: fargate_vcpu_cost
     description: "Fargate vCPU cost"
     formula: |
       if node_group_type in ['Fargate', 'Both']:
-        fargate_vcpu_hours * 0.04048
+        fargate_vcpu_hours * pricing.fargate.per_vcpu_hour
       else:
         0
     output: vcpu_cost
+    pricing_keys:
+      - fargate.per_vcpu_hour
+      
   - id: fargate_memory_cost
     description: "Fargate memory cost"
     formula: |
       if node_group_type in ['Fargate', 'Both']:
-        fargate_gb_hours * 0.004445
+        fargate_gb_hours * pricing.fargate.per_gb_hour
       else:
         0
     output: memory_cost
+    pricing_keys:
+      - fargate.per_gb_hour
 
 total_formula: "cluster_cost + vcpu_cost + memory_cost"
 
 assumptions:
-  - "EKS cluster: $0.10 per hour ($73 per month)"
-  - "Fargate: $0.04048 per vCPU hour, $0.004445 per GB hour"
+  - "EKS cluster pricing varies by region"
+  - "Fargate pricing varies by region"
   - "EC2 nodes: pay for EC2 instances separately"
-  - "Pricing based on us-east-1"
+  - "Worker node costs not included in this calculation"
 
 pricing_sources:
   - name: "Amazon EKS Pricing"
     url: "https://aws.amazon.com/eks/pricing/"
-    last_updated: "2024-01-01"
+    last_updated: "2024-12-15"

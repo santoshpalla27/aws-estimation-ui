@@ -1,28 +1,42 @@
 service: AWSGlobalAccelerator
-version: "1.0.0"
+version: "2.0.0"
+
 inputs:
   - name: accelerators
     type: integer
     required: true
     default: 1
+    description: "Number of accelerators"
   - name: data_transfer_gb
     type: number
     required: true
     default: 100
+    description: "Data transfer processed (GB/month)"
+
 calculation_steps:
   - id: accelerator_cost
-    description: "Accelerator cost"
-    formula: "accelerators * 0.025 * 730"
+    description: "Accelerator fixed cost"
+    formula: "accelerators * pricing.accelerator.per_hour * pricing.constants.hours_per_month"
     output: accelerator_cost
+    pricing_keys:
+      - accelerator.per_hour
+      - constants.hours_per_month
+      
   - id: dtu_cost
     description: "Data Transfer-Premium cost"
-    formula: "data_transfer_gb * 0.015"
+    formula: "data_transfer_gb * pricing.data_transfer.premium_per_gb"
     output: dtu_cost
+    pricing_keys:
+      - data_transfer.premium_per_gb
+
 total_formula: "accelerator_cost + dtu_cost"
+
 assumptions:
-  - "Accelerator: $0.025 per hour"
-  - "Data Transfer-Premium: $0.015/GB"
+  - "Accelerator pricing is fixed per hour"
+  - "Data Transfer-Premium charged per GB processed"
+  - "Standard AWS data transfer charges apply separately"
+
 pricing_sources:
   - name: "AWS Global Accelerator Pricing"
     url: "https://aws.amazon.com/global-accelerator/pricing/"
-    last_updated: "2024-01-01"
+    last_updated: "2024-12-15"

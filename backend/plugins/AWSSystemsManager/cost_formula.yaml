@@ -1,20 +1,30 @@
 service: AWSSystemsManager
-version: "1.0.0"
+version: "2.0.0"
+
 inputs:
   - name: on_premises_instances
     type: integer
     required: false
     default: 0
+    description: "Number of on-premises instances managed"
+
 calculation_steps:
   - id: instance_cost
     description: "On-premises instance management cost"
-    formula: "on_premises_instances * 0.00695 * 730"
+    formula: "on_premises_instances * pricing.on_premises.per_hour * pricing.constants.hours_per_month"
     output: instance_cost
+    pricing_keys:
+      - on_premises.per_hour
+      - constants.hours_per_month
+
 total_formula: "instance_cost"
+
 assumptions:
-  - "EC2 instances: Free"
-  - "On-premises: $0.00695 per hour"
+  - "EC2 instances: Free (no additional charge)"
+  - "On-premises instances: charged per hour"
+  - "Advanced tier pricing not included"
+
 pricing_sources:
   - name: "AWS Systems Manager Pricing"
     url: "https://aws.amazon.com/systems-manager/pricing/"
-    last_updated: "2024-01-01"
+    last_updated: "2024-12-15"

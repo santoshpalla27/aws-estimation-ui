@@ -1,40 +1,48 @@
 service: AmazonOpenSearchService
-version: "1.0.0"
+version: "2.0.0"
+
 inputs:
   - name: instance_type
     type: string
     required: true
     default: "t3.small.search"
+    description: "OpenSearch instance type"
   - name: instance_count
     type: integer
     required: true
     default: 2
+    description: "Number of instances"
   - name: storage_gb
     type: number
     required: true
     default: 100
+    description: "Storage per instance (GB)"
+
 calculation_steps:
   - id: instance_cost
-    description: "Instance cost"
-    formula: |
-      if instance_type == 't3.small.search':
-        instance_count * 0.036 * 730
-      elif instance_type == 't3.medium.search':
-        instance_count * 0.073 * 730
-      elif instance_type == 'm5.large.search':
-        instance_count * 0.139 * 730
-      else:
-        instance_count * 0.139 * 730
+    description: "Instance cost based on type"
+    formula: "instance_count * pricing.instances[instance_type] * pricing.constants.hours_per_month"
     output: instance_cost
+    pricing_keys:
+      - instances
+      - constants.hours_per_month
+      
   - id: storage_cost
-    description: "Storage cost"
-    formula: "storage_gb * 0.135"
+    description: "EBS storage cost"
+    formula: "storage_gb * instance_count * pricing.storage.ebs_per_gb_month"
     output: storage_cost
+    pricing_keys:
+      - storage.ebs_per_gb_month
+
 total_formula: "instance_cost + storage_cost"
+
 assumptions:
-  - "t3.small: $0.036/hour"
-  - "Storage: $0.135/GB-month"
+  - "Instance pricing varies by type and region"
+  - "EBS storage charged per GB-month"
+  - "Multi-AZ deployment requires additional instances"
+  - "UltraWarm and cold storage not included"
+
 pricing_sources:
   - name: "Amazon OpenSearch Pricing"
     url: "https://aws.amazon.com/opensearch-service/pricing/"
-    last_updated: "2024-01-01"
+    last_updated: "2024-12-15"
