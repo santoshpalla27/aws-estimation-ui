@@ -1,318 +1,243 @@
 """
-Pricing Resolver - Local-only pricing resolution (NO AWS API CALLS)
-Implements the PricingResolver interface from hybrid architecture
+Pricing Resolver - Hard-Fail on Missing Pricing
+
+This module resolves pricing keys to actual values with STRICT enforcement.
+
+CRITICAL RULES:
+- NO DEFAULTS
+- NO FALLBACKS  
+- NO SILENT FAILURES
+- FAIL LOUDLY ON MISSING KEYS
+
+If pricing cannot be resolved, estimation MUST abort.
 """
 
-from typing import Dict, Any, Optional, Protocol
+from typing import Dict, Any, List, Optional
 from decimal import Decimal
-from datetime import datetime
-from dataclasses import dataclass
 import structlog
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from core.database import get_db
-from models.pricing_models import PricingRate, PricingVersion
+
+from exceptions.pricing_errors import PricingResolutionError
 
 logger = structlog.get_logger()
 
 
-class PricingKeyNotFoundError(Exception):
-    """Raised when pricing key doesn't exist"""
-    def __init__(self, key: str, region: str, version: str):
+class PricingResolutionLog:
+    """Log entry for a single pricing resolution"""
+    
+    def __init__(self, key: str, value: Any, path: List[str]):
         self.key = key
-        self.region = region
-        self.version = version
-        super().__init__(f"Pricing key '{key}' not found for region '{region}' version '{version}'")
-
-
-class PricingVersionNotFoundError(Exception):
-    """Raised when pricing version doesn't exist"""
-    def __init__(self, version: str):
-        self.version = version
-        super().__init__(f"Pricing version '{version}' not found")
-
-
-@dataclass
-class PricingContext:
-    """
-    Pricing context injected into formulas
-    Provides dict-like access to pricing rates
-    """
-    version: str
-    service: str
-    region: str
-    rates: Dict[str, Decimal]
-    free_tier: Dict[str, Any]
-    multipliers: Dict[str, Decimal]
-    source: str
-    fetched_at: datetime
+        self.value = value
+        self.path = path
+        self.resolved = True
     
-    def __getattr__(self, key: str) -> Decimal:
-        """Allow pricing.key_name access in formulas"""
-        # Try rates first
-        if key in self.rates:
-            return self.rates[key]
-        
-        # Try free_tier
-        if 'free_tier' in self.__dict__ and key in self.free_tier:
-            return Decimal(str(self.free_tier[key]))
-        
-        # Try multipliers
-        if 'multipliers' in self.__dict__ and key in self.multipliers:
-            return self.multipliers[key]
-        
-        raise AttributeError(f"Pricing key not found: {key}")
-    
-    def get(self, key: str, default: Optional[Decimal] = None) -> Optional[Decimal]:
-        """Dict-like get with default"""
-        try:
-            return self.__getattr__(key)
-        except AttributeError:
-            return default
+    def to_dict(self) -> dict:
+        return {
+            'key': self.key,
+            'value': float(self.value) if isinstance(self.value, (int, float, Decimal)) else self.value,
+            'path': '.'.join(self.path),
+            'resolved': self.resolved
+        }
 
 
 class PricingResolver:
     """
-    Production-grade pricing resolver
-    NEVER calls external APIs - all data resolved locally from cache/DB
+    Resolves pricing keys to actual values
+    
+    STRICT MODE ONLY:
+    - Missing key → PricingResolutionError
+    - Invalid path → PricingResolutionError
+    - No fallback values
+    - No default values
+    
+    Usage:
+        resolver = PricingResolver(pricing_data, "AmazonS3", "us-east-1")
+        price = resolver.resolve("storage.standard")  # Returns 0.023 or raises
     """
     
-    def __init__(self, redis_client=None):
-        self.logger = logger.bind(component="pricing_resolver")
-        self.redis = redis_client
-        self._active_version_cache: Optional[str] = None
-    
-    async def get(
-        self,
-        key: str,
-        region: str,
-        service: str,
-        version: Optional[str] = None,
-        default: Optional[Decimal] = None
-    ) -> Decimal:
+    def __init__(self, pricing_data: Dict[str, Any], service: str, region: str):
         """
-        Resolve pricing key to value (LOCAL ONLY)
+        Initialize pricing resolver
         
         Args:
-            key: Pricing key (e.g., "compute.gb_second")
-            region: AWS region
-            service: Service name
-            version: Pricing version (defaults to latest active)
-            default: Fallback value if key not found
+            pricing_data: Pricing data dictionary (from pricing_data.yaml)
+            service: Service name (e.g., "AmazonS3")
+            region: AWS region (e.g., "us-east-1")
+        """
+        self.pricing_data = pricing_data
+        self.service = service
+        self.region = region
+        self.resolution_log: List[PricingResolutionLog] = []
+        
+        logger.info(
+            "pricing_resolver_initialized",
+            service=service,
+            region=region,
+            has_pricing_data=bool(pricing_data)
+        )
+    
+    def resolve(self, key: str) -> Decimal:
+        """
+        Resolve a pricing key to its value
+        
+        Args:
+            key: Pricing key (e.g., "storage.standard" or "instances.t3.micro")
         
         Returns:
-            Decimal pricing value
+            Pricing value as Decimal for precision
         
         Raises:
-            PricingKeyNotFoundError: If key missing and no default
-            PricingVersionNotFoundError: If version doesn't exist
+            PricingResolutionError: If key cannot be resolved (NO FALLBACK)
+        
+        Example:
+            >>> resolver.resolve("storage.standard")
+            Decimal('0.023')
         """
-        # Resolve version
-        resolved_version = version or await self._get_active_version()
+        # Navigate nested dictionary
+        parts = key.split('.')
+        current = self.pricing_data
+        path = []
         
-        # Try cache first
-        cache_key = f"pricing:{resolved_version}:{service}:{region}"
-        if self.redis:
-            try:
-                cached_data = await self.redis.hget(cache_key, key)
-                if cached_data:
-                    self.logger.debug("pricing_cache_hit", key=key, version=resolved_version)
-                    return Decimal(cached_data.decode())
-            except Exception as e:
-                self.logger.warning("pricing_cache_error", error=str(e))
-        
-        # Fallback to database
-        async with get_db() as db:
-            stmt = select(PricingRate).where(
-                PricingRate.version == resolved_version,
-                PricingRate.service == service,
-                PricingRate.region == region,
-                PricingRate.pricing_key == key
-            )
-            result = await db.execute(stmt)
-            pricing_rate = result.scalar_one_or_none()
+        for i, part in enumerate(parts):
+            path.append(part)
             
-            if pricing_rate:
-                # Cache for next time
-                if self.redis:
-                    await self.redis.hset(cache_key, key, str(pricing_rate.rate))
-                    await self.redis.expire(cache_key, 86400)  # 24 hours
+            if isinstance(current, dict):
+                if part in current:
+                    current = current[part]
+                else:
+                    # HARD FAIL - Key not found
+                    available_keys = list(current.keys()) if isinstance(current, dict) else []
+                    
+                    logger.error(
+                        "pricing_resolution_failed",
+                        service=self.service,
+                        region=self.region,
+                        key=key,
+                        failed_at_part=part,
+                        path='.'.join(path[:-1]),
+                        available_keys=available_keys[:20]  # Limit for logging
+                    )
+                    
+                    raise PricingResolutionError(
+                        service=self.service,
+                        key=key,
+                        region=self.region,
+                        available_keys=available_keys
+                    )
+            else:
+                # Tried to navigate into non-dict
+                logger.error(
+                    "pricing_resolution_invalid_path",
+                    service=self.service,
+                    region=self.region,
+                    key=key,
+                    failed_at_part=part,
+                    current_type=type(current).__name__
+                )
                 
-                return pricing_rate.rate
+                raise PricingResolutionError(
+                    service=self.service,
+                    key=key,
+                    region=self.region
+                )
         
-        # Not found - use default or raise
-        if default is not None:
-            self.logger.warning(
-                "pricing_key_not_found_using_default",
+        # Convert to Decimal for financial precision
+        try:
+            value = Decimal(str(current))
+        except (ValueError, TypeError) as e:
+            logger.error(
+                "pricing_value_not_numeric",
+                service=self.service,
+                region=self.region,
                 key=key,
-                region=region,
-                version=resolved_version,
-                default=default
+                value=current,
+                value_type=type(current).__name__,
+                error=str(e)
             )
-            return default
+            
+            raise PricingResolutionError(
+                service=self.service,
+                key=key,
+                region=self.region
+            )
         
-        raise PricingKeyNotFoundError(key, region, resolved_version)
+        # Log successful resolution
+        log_entry = PricingResolutionLog(key, value, path)
+        self.resolution_log.append(log_entry)
+        
+        logger.debug(
+            "pricing_resolved",
+            service=self.service,
+            region=self.region,
+            key=key,
+            value=float(value)
+        )
+        
+        return value
     
-    async def get_context(
-        self,
-        service: str,
-        region: str,
-        version: Optional[str] = None
-    ) -> PricingContext:
+    def resolve_dict(self, key: str) -> Dict[str, Any]:
         """
-        Get full pricing context for service/region
-        Returns PricingContext object for formula access
+        Resolve a pricing key to a dictionary (for nested structures)
+        
+        Args:
+            key: Pricing key
+        
+        Returns:
+            Dictionary value
+        
+        Raises:
+            PricingResolutionError: If key cannot be resolved or is not a dict
         """
-        resolved_version = version or await self._get_active_version()
+        parts = key.split('.')
+        current = self.pricing_data
+        path = []
         
-        # Try cache first
-        cache_key = f"pricing:{resolved_version}:{service}:{region}"
-        if self.redis:
-            try:
-                cached_rates = await self.redis.hgetall(cache_key)
-                if cached_rates:
-                    rates = {k.decode(): Decimal(v.decode()) for k, v in cached_rates.items()}
-                    
-                    # Get metadata from separate cache key
-                    meta_key = f"pricing:meta:{resolved_version}:{service}:{region}"
-                    meta_data = await self.redis.get(meta_key)
-                    
-                    if meta_data:
-                        import json
-                        meta = json.loads(meta_data.decode())
-                        
-                        return PricingContext(
-                            version=resolved_version,
-                            service=service,
-                            region=region,
-                            rates=rates,
-                            free_tier=meta.get('free_tier', {}),
-                            multipliers=meta.get('multipliers', {}),
-                            source=meta.get('source', 'unknown'),
-                            fetched_at=datetime.fromisoformat(meta['fetched_at'])
-                        )
-            except Exception as e:
-                self.logger.warning("pricing_context_cache_error", error=str(e))
-        
-        # Fallback to database
-        async with get_db() as db:
-            # Get all rates for service/region
-            stmt = select(PricingRate).where(
-                PricingRate.version == resolved_version,
-                PricingRate.service == service,
-                PricingRate.region == region
-            )
-            result = await db.execute(stmt)
-            pricing_rates = result.scalars().all()
+        for part in parts:
+            path.append(part)
             
-            if not pricing_rates:
-                self.logger.error(
-                    "no_pricing_data_found",
-                    service=service,
-                    region=region,
-                    version=resolved_version
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                available_keys = list(current.keys()) if isinstance(current, dict) else []
+                raise PricingResolutionError(
+                    service=self.service,
+                    key=key,
+                    region=self.region,
+                    available_keys=available_keys
                 )
-                # Return empty context rather than fail
-                return PricingContext(
-                    version=resolved_version,
-                    service=service,
-                    region=region,
-                    rates={},
-                    free_tier={},
-                    multipliers={},
-                    source='unknown',
-                    fetched_at=datetime.now()
-                )
-            
-            # Build rates dict
-            rates = {pr.pricing_key: pr.rate for pr in pricing_rates}
-            
-            # Extract metadata from first rate
-            first_rate = pricing_rates[0]
-            
-            # Cache for next time
-            if self.redis:
-                # Cache rates
-                for key, value in rates.items():
-                    await self.redis.hset(cache_key, key, str(value))
-                await self.redis.expire(cache_key, 86400)
-            
-            return PricingContext(
-                version=resolved_version,
-                service=service,
-                region=region,
-                rates=rates,
-                free_tier={},  # TODO: Load from pricing_metadata table
-                multipliers={},  # TODO: Load from pricing_metadata table
-                source='aws_pricing_api',
-                fetched_at=first_rate.fetched_at
+        
+        if not isinstance(current, dict):
+            raise PricingResolutionError(
+                service=self.service,
+                key=key,
+                region=self.region
             )
+        
+        # Log resolution
+        log_entry = PricingResolutionLog(key, f"<dict with {len(current)} keys>", path)
+        self.resolution_log.append(log_entry)
+        
+        return current
     
-    async def _get_active_version(self) -> str:
-        """Get currently active pricing version"""
-        # Check cache
-        if self._active_version_cache:
-            return self._active_version_cache
+    def get_resolution_log(self) -> List[Dict[str, Any]]:
+        """
+        Get log of all pricing resolutions for audit trail
         
-        # Check Redis
-        if self.redis:
-            try:
-                cached_version = await self.redis.get("pricing:active_version")
-                if cached_version:
-                    version = cached_version.decode()
-                    self._active_version_cache = version
-                    return version
-            except Exception as e:
-                self.logger.warning("active_version_cache_error", error=str(e))
-        
-        # Fallback to database
-        async with get_db() as db:
-            stmt = select(PricingVersion).where(
-                PricingVersion.is_active == True
-            ).order_by(PricingVersion.created_at.desc())
-            
-            result = await db.execute(stmt)
-            active_version = result.scalar_one_or_none()
-            
-            if not active_version:
-                raise PricingVersionNotFoundError("No active pricing version found")
-            
-            # Cache for 5 minutes
-            if self.redis:
-                await self.redis.setex("pricing:active_version", 300, active_version.version)
-            
-            self._active_version_cache = active_version.version
-            return active_version.version
+        Returns:
+            List of resolution log entries
+        """
+        return [entry.to_dict() for entry in self.resolution_log]
     
-    async def get_metadata(
-        self,
-        service: str,
-        region: str,
-        version: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Get pricing metadata (version, source, fetched_at)"""
-        resolved_version = version or await self._get_active_version()
+    def get_resolution_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of pricing resolutions
         
-        async with get_db() as db:
-            stmt = select(PricingRate).where(
-                PricingRate.version == resolved_version,
-                PricingRate.service == service,
-                PricingRate.region == region
-            ).limit(1)
-            
-            result = await db.execute(stmt)
-            rate = result.scalar_one_or_none()
-            
-            if not rate:
-                return {
-                    'version': resolved_version,
-                    'source': 'unknown',
-                    'fetched_at': None
-                }
-            
-            return {
-                'version': resolved_version,
-                'source': 'aws_pricing_api',
-                'fetched_at': rate.fetched_at.isoformat(),
-                'age_days': (datetime.now() - rate.fetched_at).days
-            }
+        Returns:
+            Summary dictionary with counts and keys
+        """
+        return {
+            'service': self.service,
+            'region': self.region,
+            'total_resolutions': len(self.resolution_log),
+            'keys_resolved': [entry.key for entry in self.resolution_log],
+            'all_successful': all(entry.resolved for entry in self.resolution_log)
+        }
