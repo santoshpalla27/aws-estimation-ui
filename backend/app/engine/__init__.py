@@ -4,4 +4,5 @@ __all__ = [
     "matcher",
     "calculator",
     "aggregator",
+    "analytics",
 ]

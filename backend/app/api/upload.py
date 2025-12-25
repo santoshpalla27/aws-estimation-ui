@@ -1,12 +1,11 @@
 """
-Upload API endpoints.
+Upload API endpoints with secure file handling.
 """
 import logging
 import shutil
 import uuid
 from pathlib import Path
 from typing import Optional
-import zipfile
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db.database import get_async_session
 from app.models.models import UploadJob
+from app.security.file_validation import FileValidator, SecurityError
 
 logger = logging.getLogger(__name__)
 
@@ -58,20 +58,49 @@ async def upload_terraform(
     
     try:
         if is_zip:
-            # Save and extract zip
+            # Save zip temporarily
             zip_path = job_dir / filename
             zip_path.write_bytes(content)
             
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(job_dir)
+            # Extract safely with validation
+            try:
+                extracted_files = FileValidator.safe_extract_zip(
+                    str(zip_path),
+                    str(job_dir)
+                )
+                logger.info(f"Safely extracted {len(extracted_files)} files")
+            except SecurityError as e:
+                logger.error(f"Security validation failed: {e}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Security validation failed: {str(e)}"
+                )
             
             upload_type = "zip"
             file_path = str(job_dir)
         
         else:
+            # Validate single file
+            try:
+                FileValidator.validate_file_extension(filename)
+            except SecurityError as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file type: {str(e)}"
+                )
+            
             # Save single file
             file_path = job_dir / filename
             file_path.write_bytes(content)
+            
+            # Validate file size
+            try:
+                FileValidator.validate_file_size(str(file_path))
+            except SecurityError as e:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large: {str(e)}"
+                )
             
             upload_type = "file"
             file_path = str(file_path)

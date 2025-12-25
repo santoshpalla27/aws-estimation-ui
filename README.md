@@ -1,272 +1,183 @@
 # AWS Terraform Cost Calculator
 
-Production-ready monolithic application for calculating AWS costs from Terraform files using real AWS pricing data.
+## What This Is
 
-## 🚀 Features
+A **technically sound** AWS cost estimation tool that:
+- Parses Terraform configurations semantically (not regex)
+- Evaluates expressions, conditionals, and expansions correctly
+- Uses real AWS pricing data with deterministic SKU matching
+- Provides full audit trails and calculation transparency
+- Enforces explicit usage models (no hardcoded assumptions)
 
-- **Real AWS Pricing Data**: Downloads and normalizes actual AWS pricing from official APIs
-- **Complete Terraform Support**: Parses resources, variables, locals, count, for_each, and local modules
-- **Accurate Cost Calculation**: Database-driven pricing with no hardcoded values
-- **Service Support**: EC2, RDS, S3, EBS, Lambda (extensible architecture)
-- **Interactive Dashboard**: React frontend with cost breakdowns and visualizations
-- **Production-Ready**: Docker Compose, PostgreSQL, proper error handling
+## What This Is NOT
 
-## 📋 Prerequisites
+This is **NOT**:
+- A billing-grade calculator
+- A financial guarantee system
+- A replacement for AWS Cost Explorer
+- Suitable for contractual cost commitments
 
-- Docker and Docker Compose
-- 2GB+ free disk space (for pricing data)
-- Internet connection (for initial pricing download)
+## Current Status
 
-## 🏃 Quick Start
+### ✅ Production-Grade Features
 
-### 1. Clone and Setup
+**Terraform Evaluation**:
+- Semantic parsing with `python-hcl2`
+- Expression evaluation (conditionals, arithmetic, functions)
+- count/for_each expansion with explicit limits
+- Fails hard on unresolved variables
 
-```bash
-cd aws-estimation-ui
-cp .env.example .env
+**Pricing Determinism**:
+- Normalized pricing tables (not JSON blobs)
+- Unique constraints prevent duplicate SKUs
+- Database-enforced single ACTIVE version
+- Explicit status tracking (SUPPORTED/UNSUPPORTED/ERROR)
+
+**Security**:
+- Zip Slip protection
+- Path traversal prevention
+- File validation and size limits
+
+**Auditability**:
+- Full calculation steps stored
+- Pricing rule IDs tracked
+- Coverage percentage calculated
+- Warnings and errors surfaced
+
+### ⚠️ Known Limitations
+
+**Usage Modeling**:
+- Requires explicit usage pattern specification
+- No automatic workload profiling
+- Estimates only (not actual usage)
+
+**Service Coverage**:
+- EC2, RDS, S3, EBS, Lambda supported
+- Other AWS services return UNSUPPORTED status
+- Storage costs for RDS not included
+
+**Pricing Accuracy**:
+- Based on AWS Bulk Pricing API
+- Updated manually (not real-time)
+- Regional pricing variations may lag
+
+## Architecture
+
+```
+Terraform Files
+    ↓
+Semantic Evaluator (expressions, conditionals)
+    ↓
+Resource Normalizer (with explicit usage model)
+    ↓
+Pricing Adapters (deterministic SQL queries)
+    ↓
+Cost Aggregator (explicit status)
+    ↓
+API Response (with coverage %)
 ```
 
-### 2. Start the Application
+## Key Design Decisions
 
+### 1. No Defaults
+- Usage model is **REQUIRED** (no 730-hour assumption)
+- Operating system must be explicit
+- Region must be specified
+
+### 2. Fail Loudly
+- Unresolved variables → Error
+- Expansion limit exceeded → Error
+- Missing usage model → Error
+- Duplicate SKU → Database constraint violation
+
+### 3. Explicit Status
+- Every resource has status: SUPPORTED, UNSUPPORTED, or ERROR
+- Aggregation uses explicit status (not cost inference)
+- Coverage percentage always calculated
+
+### 4. Database Integrity
+- Unique constraints on pricing dimensions
+- Single ACTIVE version enforced
+- Atomic state transitions
+
+## Usage
+
+### 1. Start Services
 ```bash
 docker-compose up -d
 ```
 
-This will start:
-- PostgreSQL database (port 5432)
-- Redis (port 6379)
-- Backend API (port 8000)
-- Frontend UI (port 3000)
-
-### 3. Initialize Pricing Data
-
-**IMPORTANT**: The first time you run the application, you must download pricing data:
-
+### 2. Apply Migrations
 ```bash
-docker-compose exec backend python -c "from app.pricing.scheduler import pricing_scheduler; pricing_scheduler.run_now()"
+psql $DATABASE_URL -f backend/db/migrations/004_single_active_version_constraint.sql
+psql $DATABASE_URL -f backend/db/migrations/005_pricing_unique_constraints.sql
 ```
 
-This will take **30-60 minutes** and download ~500MB of AWS pricing data. This is a one-time operation.
-
-### 4. Access the Application
-
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
-
-## 📖 Usage
-
-### Upload Terraform Files
-
-1. Open http://localhost:3000
-2. Drag and drop a `.tf` file or `.zip` archive
-3. Wait for analysis to complete
-4. View detailed cost breakdown
-
-### API Usage
-
+### 3. Verify Constraints
 ```bash
-# Upload file
-curl -X POST -F "file=@example.tf" http://localhost:8000/api/upload
-
-# Analyze (use job_id from upload response)
-curl -X POST http://localhost:8000/api/analyze/{job_id}
-
-# Get results
-curl http://localhost:8000/api/results/{job_id}
+python backend/tests/verify_constraints.py
 ```
 
-## 🏗️ Architecture
-
-### Backend (Python/FastAPI)
-
-```
-backend/
-├── app/
-│   ├── api/          # REST endpoints
-│   ├── pricing/      # AWS pricing pipeline
-│   ├── terraform/    # HCL parser & normalizer
-│   ├── engine/       # Cost calculation engine
-│   ├── models/       # SQLAlchemy models
-│   └── db/           # Database utilities
-```
-
-### Frontend (React/TypeScript)
-
-```
-frontend/
-├── src/
-│   ├── components/   # Upload & Dashboard
-│   ├── services/     # API client
-│   └── App.tsx       # Main app
-```
-
-### Database Schema
-
-- **Pricing Tables**: versions, services, regions, dimensions, rules, free_tiers
-- **Job Tables**: upload_jobs, analysis_results, resource_costs
-- **Audit Tables**: pricing_ingestion_logs
-
-## 🔧 Configuration
-
-Edit `.env` to customize:
-
-```env
-# Database
-POSTGRES_DB=aws_cost_calculator
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-
-# Pricing Updates
-PRICING_UPDATE_ENABLED=true
-PRICING_UPDATE_SCHEDULE=0 2 * * *  # Daily at 2 AM
-
-# Upload Limits
-MAX_UPLOAD_SIZE_MB=50
-```
-
-## 🧪 Testing
-
-### Sample Terraform Files
-
-Sample files are provided in `backend/tests/sample_terraform/`:
-
+### 4. Upload Terraform
 ```bash
-# Test with sample EC2 instance
-curl -X POST -F "file=@backend/tests/sample_terraform/ec2.tf" http://localhost:8000/api/upload
+curl -X POST -F "file=@infrastructure.tf" http://localhost:8000/api/upload
 ```
 
-### Run Tests
-
-```bash
-# Backend tests
-cd backend
-pytest tests/ -v
-
-# Integration tests
-pytest tests/test_integration.py -v
-```
-
-## 📊 Supported AWS Services
-
-| Service | Resource Types | Pricing Components |
-|---------|---------------|-------------------|
-| **EC2** | aws_instance | Instance hours, tenancy, OS |
-| **RDS** | aws_db_instance | Instance hours, storage, Multi-AZ |
-| **S3** | aws_s3_bucket | Storage, requests, transfer |
-| **EBS** | aws_ebs_volume | Volume storage, IOPS |
-| **Lambda** | aws_lambda_function | Requests, GB-seconds, free tier |
-
-## 🔌 Adding New Services
-
-1. **Create Adapter**: `backend/app/pricing/adapters/new_service.py`
-2. **Register in Matcher**: Add to `ADAPTER_MAP` in `engine/matcher.py`
-3. **Add Resource Mapping**: Update `RESOURCE_TYPE_MAP` in `terraform/normalizer.py`
-4. **Add Service Code**: Update `supported_services` in `config.py`
-5. **Run Pricing Ingestion**: Download pricing for new service
-
-Example adapter structure:
-
+### 5. Analyze with Usage Model
 ```python
-from app.pricing.adapters.base import BaseAdapter
+from app.models.usage_model import UsageModel
 
-class NewServiceAdapter(BaseAdapter):
-    def calculate_cost(self, resource: Dict) -> Dict:
-        # Query pricing database
-        pricing = self.query_pricing(
-            service_code="ServiceCode",
-            region_code=resource.get("region"),
-            filters={"attribute": "value"}
-        )
-        
-        # Calculate cost
-        monthly_cost = pricing.price_per_unit * quantity
-        
-        return self.format_cost_result(
-            monthly_cost,
-            {"breakdown": "details"},
-            ["warnings"]
-        )
+# Specify usage pattern (REQUIRED)
+usage_model = UsageModel.business_hours()  # or always_on(), partial(hours), spot()
+
+# Analysis will fail if usage_model not provided
 ```
 
-## 🐛 Troubleshooting
+## Deployment Checklist
 
-### No Pricing Data
+- [ ] Database migrations applied
+- [ ] Unique constraints verified
+- [ ] Environment variables set
+- [ ] Pricing data ingested
+- [ ] Single ACTIVE version confirmed
+- [ ] Tests passing
+- [ ] Coverage warnings displayed in UI
+
+## Testing
 
 ```bash
-# Check pricing version
-curl http://localhost:8000/api/pricing/stats
+# Run all tests
+pytest backend/tests/ -v
 
-# Manually trigger update
-curl -X POST http://localhost:8000/api/pricing/update
+# Verify constraints
+python backend/tests/verify_constraints.py
+
+# Test Terraform evaluation
+pytest backend/tests/test_terraform_evaluator.py -v
 ```
 
-### Database Issues
+## Limitations & Disclaimers
 
-```bash
-# Reset database
-docker-compose down -v
-docker-compose up -d
-# Re-run pricing ingestion
-```
+1. **Estimates Only**: Costs are estimates based on specified usage patterns
+2. **Manual Updates**: Pricing data requires manual ingestion
+3. **Limited Services**: Only 5 AWS services currently supported
+4. **No Actual Usage**: Cannot profile real workload patterns
+5. **Regional Lag**: Some regional pricing may not be current
 
-### Logs
+## Contributing
 
-```bash
-# View backend logs
-docker-compose logs -f backend
+This is a portfolio/learning project demonstrating:
+- Production-grade architecture
+- Database integrity constraints
+- Semantic parsing
+- Explicit error handling
+- Full auditability
 
-# View all logs
-docker-compose logs -f
-```
+Not intended for:
+- Financial commitments
+- Billing accuracy guarantees
+- Production cost management
 
-## 🚀 Production Deployment
+## License
 
-### Environment Variables
-
-Set production values:
-
-```env
-APP_ENV=production
-DEBUG=false
-POSTGRES_PASSWORD=<strong-password>
-CORS_ORIGINS=https://yourdomain.com
-```
-
-### Database Backups
-
-```bash
-# Backup
-docker-compose exec postgres pg_dump -U postgres aws_cost_calculator > backup.sql
-
-# Restore
-docker-compose exec -T postgres psql -U postgres aws_cost_calculator < backup.sql
-```
-
-### Scaling
-
-- Use managed PostgreSQL (RDS, Cloud SQL)
-- Add Redis cluster for caching
-- Deploy backend with multiple replicas
-- Use CDN for frontend
-
-## 📝 License
-
-MIT License - See LICENSE file
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Add tests for new features
-4. Submit pull request
-
-## 📧 Support
-
-For issues and questions:
-- GitHub Issues: [Create Issue]
-- Documentation: See `/docs` directory
-
----
-
-**Built with**: Python 3.11, FastAPI, React, PostgreSQL, Docker
+MIT - Use at your own risk. No warranties provided.

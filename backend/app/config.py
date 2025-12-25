@@ -58,8 +58,11 @@ class Settings(BaseSettings):
     
     # Terraform parsing settings
     max_module_depth: int = 5
-    max_count_expansion: int = 100
-    max_for_each_expansion: int = 100
+    # CRITICAL: High limits to avoid silent truncation
+    # If infrastructure has 300 instances, we MUST expand all 300
+    # Lower limits cause massive cost underestimation
+    max_count_expansion: int = Field(default=10000, alias="MAX_COUNT_EXPANSION")
+    max_for_each_expansion: int = Field(default=10000, alias="MAX_FOR_EACH_EXPANSION")
     
     model_config = SettingsConfigDict(
         env_file=".env",

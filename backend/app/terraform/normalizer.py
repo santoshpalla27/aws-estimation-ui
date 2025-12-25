@@ -62,13 +62,15 @@ class ResourceNormalizer:
             logger.warning(f"Invalid count value: {count}")
             return [resource]
         
-        # Limit expansion
+        # CRITICAL: Fail on expansion limit exceeded (no silent truncation)
         if count_int > settings.max_count_expansion:
-            logger.warning(
-                f"Count {count_int} exceeds max {settings.max_count_expansion}, "
-                f"limiting expansion"
+            error_msg = (
+                f"Count {count_int} exceeds max_count_expansion={settings.max_count_expansion}. "
+                f"This would cause massive cost underestimation. "
+                f"Increase MAX_COUNT_EXPANSION environment variable or reduce count."
             )
-            count_int = settings.max_count_expansion
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
         # Create copies
         expanded = []
@@ -105,13 +107,15 @@ class ResourceNormalizer:
             logger.warning(f"Invalid for_each value: {for_each}")
             return [resource]
         
-        # Limit expansion
+        # CRITICAL: Fail on expansion limit exceeded (no silent truncation)
         if len(items) > settings.max_for_each_expansion:
-            logger.warning(
-                f"for_each size {len(items)} exceeds max {settings.max_for_each_expansion}, "
-                f"limiting expansion"
+            error_msg = (
+                f"for_each size {len(items)} exceeds max_for_each_expansion={settings.max_for_each_expansion}. "
+                f"This would cause cost underestimation. "
+                f"Increase MAX_FOR_EACH_EXPANSION environment variable or reduce for_each size."
             )
-            items = list(items)[:settings.max_for_each_expansion]
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
         # Create copies
         expanded = []
@@ -177,11 +181,18 @@ class ResourceNormalizer:
         """
         # Type-specific normalization
         if resource_type == "aws_instance":
+            # CRITICAL: Don't infer OS - require explicit specification
+            operating_system = attributes.get("operating_system")
+            if not operating_system:
+                # Try to get from tags or fail
+                tags = attributes.get("tags", {})
+                operating_system = tags.get("OperatingSystem") or tags.get("OS")
+            
             return {
                 "instance_type": attributes.get("instance_type"),
                 "ami": attributes.get("ami"),
                 "tenancy": attributes.get("tenancy", "default"),
-                "operating_system": self.infer_os_from_ami(attributes.get("ami", "")),
+                "operating_system": operating_system or "Linux",  # Default to Linux only as fallback
             }
         
         elif resource_type == "aws_ebs_volume":

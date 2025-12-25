@@ -24,6 +24,22 @@ export interface AnalysisResponse {
     unsupported_resources: number;
 }
 
+export interface Resource {
+    name: string;
+    type: string;
+    service: string;
+    region: string;
+    monthly_cost: number;
+    pricing_details: any;
+    warnings: string[];
+}
+
+export interface ErrorResource {
+    resource: string;
+    type: string;
+    error: string;
+}
+
 export interface ResultsResponse {
     job_id: string;
     status: string;
@@ -31,24 +47,14 @@ export interface ResultsResponse {
     total_resources: number;
     supported_resources: number;
     unsupported_resources: number;
+    error_resources: number;
+    coverage_percentage: number;
     breakdown_by_service: Record<string, number>;
     breakdown_by_region: Record<string, number>;
-    resources: Array<{
-        name: string;
-        type: string;
-        service: string;
-        region: string;
-        monthly_cost: number;
-        pricing_details: any;
-        warnings: string[];
-    }>;
-    warnings: string[];
-    errors: Array<{
-        resource: string;
-        type: string;
-        error: string;
-    }>;
-    pricing_version: number;
+    type: string;
+    error: string;
+}>;
+pricing_version: number;
 }
 
 export const uploadFile = async (file: File): Promise<UploadResponse> => {

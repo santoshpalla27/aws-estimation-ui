@@ -13,16 +13,21 @@ from sqlalchemy import select
 from app.config import settings
 from app.db.database import get_async_session
 from app.models.models import UploadJob, AnalysisResult, ResourceCost, PricingVersion
-from app.terraform.parser import TerraformParser
-from app.terraform.variables import VariableResolver
-from app.terraform.modules import ModuleResolver
-from app.terraform.normalizer import ResourceNormalizer
-from app.engine.calculator import CostCalculator
+from app.terraform.service_mapping import get_service_code
 from app.engine.aggregator import CostAggregator
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _get_service_code(resource_type: str) -> str:
+    """Get service code for resource type."""
+    try:
+        return get_service_code(resource_type)
+    except ValueError:
+        # Unknown resource type - will be marked as UNSUPPORTED
+        return "Unknown"
 
 
 @router.post("/analyze/{job_id}")
@@ -57,61 +62,113 @@ async def analyze_terraform(
         upload_job.status = "parsing"
         await db.commit()
         
-        # Get active pricing version
-        pricing_result = await db.execute(
-            select(PricingVersion).where(PricingVersion.is_active == True)
-        )
-        pricing_version = pricing_result.scalar_one_or_none()
+        
+        # CRITICAL: Get ACTIVE pricing version using version manager
+        from app.pricing.version_manager import PricingVersionManager, VersionStatus
+        
+        version_manager = PricingVersionManager(db)
+        pricing_version = version_manager.get_active_version()
         
         if not pricing_version:
             raise HTTPException(
                 status_code=500,
-                detail="No active pricing version. Run pricing ingestion first."
+                detail="No ACTIVE pricing version. Run pricing ingestion and activation first."
             )
         
-        # Parse Terraform
-        logger.info(f"Parsing Terraform for job {job_id}")
-        parser = TerraformParser()
-        file_path = Path(upload_job.file_path)
+        # Verify version is actually ACTIVE (double-check)
+        if pricing_version.status != VersionStatus.ACTIVE:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Pricing version {pricing_version.id} is not ACTIVE (status: {pricing_version.status})"
+            )
         
-        if file_path.is_file():
-            parsed = parser.parse(file_path)
-        else:
-            parsed = parser.parse(file_path)
         
-        # Resolve variables
-        logger.info("Resolving variables")
-        resolver = VariableResolver(
-            parsed["variables"],
-            parsed["locals"]
+        # CRITICAL: Use Terraform Semantic Evaluator (not regex-based parser)
+        logger.info(f"Evaluating Terraform semantically for job {job_id}")
+        
+        from app.terraform.evaluator.engine import TerraformEvaluationEngine
+        from app.terraform.evaluator.errors import (
+            UnresolvedReferenceError,
+            ExpansionLimitExceededError,
+            InvalidExpressionError
         )
-        resolver.resolve_all()
         
-        # Expand modules
-        logger.info("Expanding modules")
-        module_resolver = ModuleResolver(file_path.parent if file_path.is_file() else file_path)
-        module_resources = module_resolver.expand_all_modules(parsed["modules"])
+        try:
+            # Use semantic evaluator instead of old parser
+            evaluator = TerraformEvaluationEngine(
+                max_count_expansion=settings.max_count_expansion,
+                max_for_each_expansion=settings.max_for_each_expansion
+            )
+            
+            file_path = Path(upload_job.file_path)
+            
+            # Evaluate Terraform - this will:
+            # 1. Parse HCL
+            # 2. Resolve variables and locals
+            # 3. Evaluate conditionals
+            # 4. Expand count
+            # 5. Expand for_each
+            # 6. Resolve all expressions
+            # 7. FAIL HARD on unresolved references
+            if file_path.is_file():
+                expanded_resources = evaluator.evaluate_terraform_file(file_path)
+            else:
+                expanded_resources = evaluator.evaluate_terraform_directory(file_path)
+            
+            logger.info(f"Evaluated {len(expanded_resources)} resources")
+            
+        except UnresolvedReferenceError as e:
+            # CRITICAL: Fail on unresolved variables
+            error_msg = f"Terraform evaluation failed: {str(e)}"
+            logger.error(error_msg)
+            upload_job.status = "failed"
+            upload_job.error_message = error_msg
+            await db.commit()
+            raise HTTPException(status_code=400, detail=error_msg)
         
-        # Combine resources
-        all_resources = parsed["resources"] + module_resources
+        except ExpansionLimitExceededError as e:
+            # CRITICAL: Fail on expansion limit (no silent truncation)
+            error_msg = f"Expansion limit exceeded: {str(e)}"
+            logger.error(error_msg)
+            upload_job.status = "failed"
+            upload_job.error_message = error_msg
+            await db.commit()
+            raise HTTPException(status_code=400, detail=error_msg)
         
-        # Normalize resources
-        logger.info("Normalizing resources")
-        normalizer = ResourceNormalizer()
-        normalized_resources = normalizer.normalize_all(all_resources)
+        except InvalidExpressionError as e:
+            # CRITICAL: Fail on invalid expressions
+            error_msg = f"Invalid Terraform expression: {str(e)}"
+            logger.error(error_msg)
+            upload_job.status = "failed"
+            upload_job.error_message = error_msg
+            await db.commit()
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Convert ExpandedResource objects to normalized format for calculator
+        normalized_resources = []
+        for resource in expanded_resources:
+            normalized_resources.append({
+                "provider": "aws",
+                "service": self._get_service_code(resource.resource_type),
+                "type": resource.resource_type,
+                "resource_type": resource.resource_type,
+                "name": resource.logical_id,
+                "region": resource.resolved_region,
+                "attributes": resource.resolved_attributes
+            })
+        
+        logger.info(f"Normalized {len(normalized_resources)} resources")
         
         # Update status
         upload_job.status = "calculating"
         await db.commit()
         
-        # Calculate costs
+        # Calculate costs (ASYNC - no blocking)
         logger.info("Calculating costs")
+        from app.engine.async_calculator import AsyncCostCalculator
         
-        # Use sync session for calculator
-        from app.db.database import get_sync_session
-        with next(get_sync_session()) as sync_db:
-            calculator = CostCalculator(sync_db, pricing_version)
-            cost_results = calculator.calculate_all_costs(normalized_resources)
+        calculator = AsyncCostCalculator(db, pricing_version)
+        cost_results = await calculator.calculate_all_costs(normalized_resources)
         
         # Aggregate results
         logger.info("Aggregating results")
@@ -132,10 +189,14 @@ async def analyze_terraform(
             errors=aggregated["errors"]
         )
         
+        # CRITICAL: Log coverage
+        coverage = aggregated.get("coverage_percentage", 0)
+        logger.info(f"Pricing coverage: {coverage:.1f}%")
+        
         db.add(analysis_result)
         await db.flush()
         
-        # Store individual resource costs
+        # Store individual resource costs with explicit status
         for cost_result in cost_results:
             resource_cost = ResourceCost(
                 analysis_id=analysis_result.id,
@@ -144,7 +205,13 @@ async def analyze_terraform(
                 service_code=cost_result.get("service_code", "Unknown"),
                 region_code=cost_result.get("region"),
                 monthly_cost=Decimal(str(cost_result.get("monthly_cost", 0))),
-                attributes=cost_result.get("pricing_details", {}),
+                attributes={
+                    "status": cost_result.get("status"),
+                    "pricing_rule_id": cost_result.get("pricing_rule_id"),
+                    "calculation_steps": cost_result.get("calculation_steps", []),
+                    "error_message": cost_result.get("error_message"),
+                    "unsupported_reason": cost_result.get("unsupported_reason")
+                },
                 pricing_details=cost_result.get("pricing_details", {}),
                 warnings=cost_result.get("warnings")
             )
@@ -162,7 +229,11 @@ async def analyze_terraform(
             "total_monthly_cost": float(aggregated["total_monthly_cost"]),
             "total_resources": aggregated["resource_counts"]["total"],
             "supported_resources": aggregated["resource_counts"]["supported"],
-            "unsupported_resources": aggregated["resource_counts"]["unsupported"]
+            "unsupported_resources": aggregated["resource_counts"]["unsupported"],
+            "error_resources": aggregated["resource_counts"]["error"],
+            "coverage_percentage": aggregated.get("coverage_percentage", 0),
+            "warnings": aggregated["warnings"],
+            "errors": aggregated["errors"][:10]  # Limit errors in response
         }
     
     except Exception as e:

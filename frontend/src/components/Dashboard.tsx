@@ -99,7 +99,40 @@ function Dashboard({ jobId, onReset }: DashboardProps) {
                         <p className="card-value">{results.unsupported_resources}</p>
                     </div>
                 </div>
+
+                {results.error_resources > 0 && (
+                    <div className="summary-card error">
+                        <div className="card-icon">❌</div>
+                        <div className="card-content">
+                            <h3>Errors</h3>
+                            <p className="card-value">{results.error_resources}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className={`summary-card ${results.coverage_percentage < 100 ? 'warning' : 'success'}`}>
+                    <div className="card-icon">📊</div>
+                    <div className="card-content">
+                        <h3>Coverage</h3>
+                        <p className="card-value">{results.coverage_percentage.toFixed(1)}%</p>
+                    </div>
+                </div>
             </div>
+
+            {/* Coverage Warning */}
+            {results.coverage_percentage < 100 && (
+                <div className="alert warning coverage-alert">
+                    <h4>⚠️ Incomplete Pricing Coverage</h4>
+                    <p>
+                        Only <strong>{results.coverage_percentage.toFixed(1)}%</strong> of resources have pricing data.
+                        The total cost shown excludes {results.unsupported_resources} unsupported resource(s)
+                        {results.error_resources > 0 && ` and ${results.error_resources} resource(s) with errors`}.
+                    </p>
+                    <p className="coverage-note">
+                        <strong>Note:</strong> Actual costs may be higher. Review unsupported resources below.
+                    </p>
+                </div>
+            )}
 
             {/* Charts */}
             <div className="charts-grid">
