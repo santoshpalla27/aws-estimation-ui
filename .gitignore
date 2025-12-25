@@ -1,25 +1,85 @@
-.env
-*.pyc
+# Python
 __pycache__/
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*$py.class
 *.so
-*.egg
-*.egg-info/
-dist/
+.Python
 build/
-.pytest_cache/
-.coverage
-htmlcov/
-.venv/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
 venv/
-node_modules/
-.DS_Store
+ENV/
+env/
+
+# IDEs
 .vscode/
 .idea/
-*.log
 *.swp
 *.swo
 *~
-.cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build
+dist/
+build/
+
+# Uploads and data
+uploads/
+pricing_data/
+
+# Docker
+.dockerignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# TypeScript
+*.tsbuildinfo
+
+
+
+combine-code.ps1
+
+combined-code.txt

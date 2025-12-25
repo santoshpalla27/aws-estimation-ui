@@ -1,174 +1,272 @@
-# AWS Cost Estimation Platform - Implementation Complete
+# AWS Terraform Cost Calculator
 
-## Project Status: ✅ READY FOR DEPLOYMENT
+Production-ready monolithic application for calculating AWS costs from Terraform files using real AWS pricing data.
 
-The production-grade AWS Cost Estimation & Architecture Modeling Platform has been successfully implemented with all core features.
+## 🚀 Features
 
-## What Was Built
+- **Real AWS Pricing Data**: Downloads and normalizes actual AWS pricing from official APIs
+- **Complete Terraform Support**: Parses resources, variables, locals, count, for_each, and local modules
+- **Accurate Cost Calculation**: Database-driven pricing with no hardcoded values
+- **Service Support**: EC2, RDS, S3, EBS, Lambda (extensible architecture)
+- **Interactive Dashboard**: React frontend with cost breakdowns and visualizations
+- **Production-Ready**: Docker Compose, PostgreSQL, proper error handling
 
-### Backend (FastAPI + Python)
-- ✅ **Docker Compose** - Production and development configurations
-- ✅ **PostgreSQL Database** - Complete schema with projects, graphs, estimates, pricing data
-- ✅ **FastAPI Application** - Structured logging, CORS, health checks
-- ✅ **API Routes** - Projects, Estimates, Services, Health endpoints
-- ✅ **Graph Engine** - DAG-based dependency resolution with implicit injection
-- ✅ **Cost Calculator** - Deterministic formulas for EC2, Lambda, RDS, S3
-- ✅ **Plugin Loader** - Hot-loadable AWS service definitions
-- ✅ **Sample Plugin** - Complete EC2 plugin with dependencies and cost formulas
+## 📋 Prerequisites
 
-### Frontend (React + TypeScript)
-- ✅ **Vite + TypeScript** - Modern build setup with hot-reload
-- ✅ **Tailwind CSS** - Custom theme with dark mode support
-- ✅ **ReactFlow** - Drag-drop infrastructure canvas
-- ✅ **Zustand** - State management for projects and graphs
-- ✅ **TanStack Query** - API client with caching
-- ✅ **Dashboard** - Project list and creation
-- ✅ **Project Editor** - Visual infrastructure design with cost calculation
-- ✅ **Service Catalog** - Searchable, filterable AWS services
-- ✅ **Estimate Summary** - Cost breakdown, warnings, assumptions
+- Docker and Docker Compose
+- 2GB+ free disk space (for pricing data)
+- Internet connection (for initial pricing download)
 
-## Quick Start
+## 🏃 Quick Start
+
+### 1. Clone and Setup
 
 ```bash
-# 1. Clone and navigate
 cd aws-estimation-ui
-
-# 2. Set up environment
 cp .env.example .env
-# Edit .env with your AWS credentials
-
-# 3. Start all services
-docker-compose up -d
-
-# 4. Access application
-open http://localhost:3000
 ```
 
-## Architecture Highlights
+### 2. Start the Application
 
-### Dependency-First Design
-- DAG-based graph engine with topological sorting
-- Automatic implicit dependency injection (NAT Gateway, data transfer, cross-AZ)
-- Cycle detection and orphan node validation
-
-### Explainable Cost Calculation
-- Step-by-step formula execution
-- Pricing source tracking
-- Explicit assumptions surfaced
-- Confidence scoring
-
-### Plugin Extensibility
-- YAML/JSON-based service definitions
-- Hot-loadable without restart
-- No core changes required for new services
-
-### Production-Ready
-- Docker Compose deployment
-- PostgreSQL + Redis
-- Structured logging
-- Health checks
-- CORS configuration
-
-## Next Steps
-
-1. **Add More Service Plugins** - Create plugins for remaining 45+ AWS services
-2. **Implement Pricing Ingestion** - Connect to AWS Price List API
-3. **Add Validation Rules** - Security, cost, reliability checks
-4. **Enhance UI** - Service configuration forms, graph layouts
-5. **Deploy to AWS** - ECS Fargate, RDS, ElastiCache
-
-## File Structure
-
-```
-aws-estimation-ui/
-├── backend/
-│   ├── api/routes/          # API endpoints
-│   ├── core/                # Config, database, Redis
-│   ├── models/              # Database models, schemas
-│   ├── services/            # Graph engine, cost calculator
-│   ├── plugins/             # AWS service plugins
-│   ├── Dockerfile           # Production image
-│   └── requirements.txt     # Python dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── pages/           # Dashboard, ProjectEditor
-│   │   ├── lib/             # API client, utilities
-│   │   └── store/           # Zustand state management
-│   ├── Dockerfile           # Production image
-│   └── package.json         # Node dependencies
-├── database/
-│   └── init.sql             # PostgreSQL schema
-├── docker-compose.yml       # Production deployment
-└── docker-compose.dev.yml   # Development setup
-```
-
-## Technology Stack
-
-**Backend:**
-- FastAPI, Pydantic, SQLAlchemy
-- PostgreSQL, Redis
-- NetworkX (graph algorithms)
-- Structlog (structured logging)
-
-**Frontend:**
-- React 18, TypeScript
-- ReactFlow (graph visualization)
-- Zustand (state management)
-- TanStack Query (data fetching)
-- Tailwind CSS (styling)
-
-**Infrastructure:**
-- Docker Compose
-- PostgreSQL 15
-- Redis 7
-- Nginx (production)
-
-## Implementation Validation
-
-✅ **Architecture-first** - Complete design before implementation  
-✅ **Dependency modeling** - DAG-based with implicit injection  
-✅ **Deterministic costs** - Formula-driven calculations  
-✅ **Hidden costs surfaced** - NAT, cross-AZ, data transfer  
-✅ **Plugin extensibility** - No core changes for new services  
-✅ **Production-grade** - Docker Compose, health checks, logging  
-✅ **Observability-ready** - Structured logs, metrics endpoints  
-✅ **Security-first** - CORS, environment variables, secrets  
-
-## Deployment
-
-### Development
-```bash
-docker-compose -f docker-compose.dev.yml up
-```
-
-### Production
 ```bash
 docker-compose up -d
 ```
 
-### Health Check
+This will start:
+- PostgreSQL database (port 5432)
+- Redis (port 6379)
+- Backend API (port 8000)
+- Frontend UI (port 3000)
+
+### 3. Initialize Pricing Data
+
+**IMPORTANT**: The first time you run the application, you must download pricing data:
+
 ```bash
-curl http://localhost:8000/api/v1/health
+docker-compose exec backend python -c "from app.pricing.scheduler import pricing_scheduler; pricing_scheduler.run_now()"
 ```
 
-## API Endpoints
+This will take **30-60 minutes** and download ~500MB of AWS pricing data. This is a one-time operation.
 
-- `GET /api/v1/health` - Health check
-- `GET /api/v1/projects` - List projects
-- `POST /api/v1/projects` - Create project
-- `POST /api/v1/estimates` - Calculate cost estimate
-- `GET /api/v1/services` - List AWS services
+### 4. Access the Application
 
-## Success Criteria Met
+- **Frontend**: http://localhost:3000
+- **API Docs**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
 
-✅ Visual infrastructure design  
-✅ Drag-drop AWS services  
-✅ Dependency-aware DAG  
-✅ Implicit dependency injection  
-✅ Accurate cost estimates  
-✅ Warnings and assumptions  
-✅ Extensible architecture  
-✅ Docker Compose deployment  
+## 📖 Usage
 
-**The platform is ready for use and further development!**
+### Upload Terraform Files
+
+1. Open http://localhost:3000
+2. Drag and drop a `.tf` file or `.zip` archive
+3. Wait for analysis to complete
+4. View detailed cost breakdown
+
+### API Usage
+
+```bash
+# Upload file
+curl -X POST -F "file=@example.tf" http://localhost:8000/api/upload
+
+# Analyze (use job_id from upload response)
+curl -X POST http://localhost:8000/api/analyze/{job_id}
+
+# Get results
+curl http://localhost:8000/api/results/{job_id}
+```
+
+## 🏗️ Architecture
+
+### Backend (Python/FastAPI)
+
+```
+backend/
+├── app/
+│   ├── api/          # REST endpoints
+│   ├── pricing/      # AWS pricing pipeline
+│   ├── terraform/    # HCL parser & normalizer
+│   ├── engine/       # Cost calculation engine
+│   ├── models/       # SQLAlchemy models
+│   └── db/           # Database utilities
+```
+
+### Frontend (React/TypeScript)
+
+```
+frontend/
+├── src/
+│   ├── components/   # Upload & Dashboard
+│   ├── services/     # API client
+│   └── App.tsx       # Main app
+```
+
+### Database Schema
+
+- **Pricing Tables**: versions, services, regions, dimensions, rules, free_tiers
+- **Job Tables**: upload_jobs, analysis_results, resource_costs
+- **Audit Tables**: pricing_ingestion_logs
+
+## 🔧 Configuration
+
+Edit `.env` to customize:
+
+```env
+# Database
+POSTGRES_DB=aws_cost_calculator
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+
+# Pricing Updates
+PRICING_UPDATE_ENABLED=true
+PRICING_UPDATE_SCHEDULE=0 2 * * *  # Daily at 2 AM
+
+# Upload Limits
+MAX_UPLOAD_SIZE_MB=50
+```
+
+## 🧪 Testing
+
+### Sample Terraform Files
+
+Sample files are provided in `backend/tests/sample_terraform/`:
+
+```bash
+# Test with sample EC2 instance
+curl -X POST -F "file=@backend/tests/sample_terraform/ec2.tf" http://localhost:8000/api/upload
+```
+
+### Run Tests
+
+```bash
+# Backend tests
+cd backend
+pytest tests/ -v
+
+# Integration tests
+pytest tests/test_integration.py -v
+```
+
+## 📊 Supported AWS Services
+
+| Service | Resource Types | Pricing Components |
+|---------|---------------|-------------------|
+| **EC2** | aws_instance | Instance hours, tenancy, OS |
+| **RDS** | aws_db_instance | Instance hours, storage, Multi-AZ |
+| **S3** | aws_s3_bucket | Storage, requests, transfer |
+| **EBS** | aws_ebs_volume | Volume storage, IOPS |
+| **Lambda** | aws_lambda_function | Requests, GB-seconds, free tier |
+
+## 🔌 Adding New Services
+
+1. **Create Adapter**: `backend/app/pricing/adapters/new_service.py`
+2. **Register in Matcher**: Add to `ADAPTER_MAP` in `engine/matcher.py`
+3. **Add Resource Mapping**: Update `RESOURCE_TYPE_MAP` in `terraform/normalizer.py`
+4. **Add Service Code**: Update `supported_services` in `config.py`
+5. **Run Pricing Ingestion**: Download pricing for new service
+
+Example adapter structure:
+
+```python
+from app.pricing.adapters.base import BaseAdapter
+
+class NewServiceAdapter(BaseAdapter):
+    def calculate_cost(self, resource: Dict) -> Dict:
+        # Query pricing database
+        pricing = self.query_pricing(
+            service_code="ServiceCode",
+            region_code=resource.get("region"),
+            filters={"attribute": "value"}
+        )
+        
+        # Calculate cost
+        monthly_cost = pricing.price_per_unit * quantity
+        
+        return self.format_cost_result(
+            monthly_cost,
+            {"breakdown": "details"},
+            ["warnings"]
+        )
+```
+
+## 🐛 Troubleshooting
+
+### No Pricing Data
+
+```bash
+# Check pricing version
+curl http://localhost:8000/api/pricing/stats
+
+# Manually trigger update
+curl -X POST http://localhost:8000/api/pricing/update
+```
+
+### Database Issues
+
+```bash
+# Reset database
+docker-compose down -v
+docker-compose up -d
+# Re-run pricing ingestion
+```
+
+### Logs
+
+```bash
+# View backend logs
+docker-compose logs -f backend
+
+# View all logs
+docker-compose logs -f
+```
+
+## 🚀 Production Deployment
+
+### Environment Variables
+
+Set production values:
+
+```env
+APP_ENV=production
+DEBUG=false
+POSTGRES_PASSWORD=<strong-password>
+CORS_ORIGINS=https://yourdomain.com
+```
+
+### Database Backups
+
+```bash
+# Backup
+docker-compose exec postgres pg_dump -U postgres aws_cost_calculator > backup.sql
+
+# Restore
+docker-compose exec -T postgres psql -U postgres aws_cost_calculator < backup.sql
+```
+
+### Scaling
+
+- Use managed PostgreSQL (RDS, Cloud SQL)
+- Add Redis cluster for caching
+- Deploy backend with multiple replicas
+- Use CDN for frontend
+
+## 📝 License
+
+MIT License - See LICENSE file
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch
+3. Add tests for new features
+4. Submit pull request
+
+## 📧 Support
+
+For issues and questions:
+- GitHub Issues: [Create Issue]
+- Documentation: See `/docs` directory
+
+---
+
+**Built with**: Python 3.11, FastAPI, React, PostgreSQL, Docker

@@ -1,135 +1,128 @@
-version: '3.9'
+version: '3.8'
 
 services:
-  # Frontend - React Application
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: aws-cost-calculator-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aws_cost_calculator}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Redis for caching and job queues
+  redis:
+    image: redis:7-alpine
+    container_name: aws-cost-calculator-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aws-cost-calculator-backend
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-aws_cost_calculator}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-aws_cost_calculator}
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # Application
+      APP_ENV: ${APP_ENV:-development}
+      DEBUG: ${DEBUG:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # Upload settings
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
+      UPLOAD_DIR: /app/uploads
+      
+      # Pricing settings
+      PRICING_UPDATE_ENABLED: ${PRICING_UPDATE_ENABLED:-true}
+      PRICING_UPDATE_SCHEDULE: ${PRICING_UPDATE_SCHEDULE:-0 2 * * *}
+      
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - upload_data:/app/uploads
+      - pricing_data:/app/pricing_data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app-network
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "80:80"
+      target: development
+    container_name: aws-cost-calculator-frontend
     environment:
-      - VITE_API_URL=http://54.172.142.250:8000
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
       - app-network
     restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0 --port 3000
 
-  # Database Initialization - Runs once on startup
-  db-init:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    environment:
-      - DATABASE_URL=postgresql://costuser:${POSTGRES_PASSWORD:-securepass}@postgres:5432/costdb
-      - POSTGRES_USER=costuser
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-securepass}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - app-network
-    volumes:
-      - ./backend:/app/backend:ro
-    command: /bin/bash /app/backend/scripts/init_entrypoint.sh
-    restart: "no" # Run once and exit
-
-  # Backend API - FastAPI
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://costuser:${POSTGRES_PASSWORD:-securepass}@postgres:5432/costdb
-      - REDIS_URL=redis://redis:6379
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://54.196.223.229}
-      - ENVIRONMENT=production
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      # db-init disabled - tables already exist
-      # db-init:
-      #   condition: service_completed_successfully
-    networks:
-      - app-network
-    restart: unless-stopped
-    volumes:
-      - ./backend/plugins:/app/plugins:ro
-
-  # PostgreSQL - Metadata & Projects
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=costdb
-      - POSTGRES_USER=costuser
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-securepass}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    networks:
-      - app-network
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U costuser -d costdb" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis - Pricing & Dependency Cache
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - app-network
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Integration Tests - Automated Testing Container
-  tests:
-    build:
-      context: .
-      dockerfile: backend/tests/Dockerfile
-    environment:
-      - BACKEND_URL=http://backend:8000
-    depends_on:
-      backend:
-        condition: service_started
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - app-network
-    restart: "no" # Run once and exit
-    profiles:
-      - test # Only run when explicitly requested
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  upload_data:
+    driver: local
+  pricing_data:
+    driver: local
 
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  postgres-data:
-    driver: local
-  redis-data:
-    driver: local
